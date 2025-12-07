@@ -82,13 +82,6 @@ const GanttChart = () => {
     return { left: leftPx, width: widthPx };
   };
   
-  const priorityColors: { [key: string]: string } = {
-    Urgent: 'bg-red-500',
-    High: 'bg-orange-400',
-    Medium: 'bg-blue-500',
-    Low: 'bg-green-500'
-  };
-
   const statusProgress: { [key: string]: number } = {
     'Done': 100,
     'In Progress': 60,
@@ -232,36 +225,32 @@ const GanttChart = () => {
                   return (
                     <div 
                       key={task.id} 
-                      className="absolute flex items-center group"
+                      className="absolute group"
                       style={{ 
                         top: `${index * ROW_HEIGHT_PX}px`,
-                        left: `0`,
-                        width: '100%',
+                        left: `${left}px`, 
+                        width: `${width}px`,
                         height: `${ROW_HEIGHT_PX}px`,
+                        padding: '12px 0'
                       }}
                     >
-                        <div
-                          className="absolute h-8 top-1/2 -translate-y-1/2 flex items-center rounded-md"
-                          style={{ 
-                            left: `${left}px`, 
-                            width: `${width}px`,
-                            backgroundImage: `linear-gradient(to right, hsl(var(--primary) / 0.8), hsl(var(--primary) / 0.8) ${progress}%, hsl(var(--primary) / 0.3) ${progress}%)`
-                          }}
-                          title={`${task.title} (${format(parseISO(task.startDate), 'MMM d')} - ${format(parseISO(task.endDate), 'MMM d')})`}
-                        >
-                        </div>
-                         <div 
-                            className="absolute flex items-center top-1/2 -translate-y-1/2" 
-                            style={{ left: `${left + width + 8}px` }}
-                          >
-                              <span className="truncate text-foreground font-medium text-sm z-10">{task.title}</span>
-                              {task.assignee && (
-                                <Avatar className="h-6 w-6 border-2 border-background ml-2">
-                                    <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
-                                    <AvatarFallback>{task.assignee.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                              )}
-                          </div>
+                      <div
+                        className="relative h-full w-full flex items-center rounded-sm text-primary-foreground overflow-hidden"
+                        style={{
+                          backgroundImage: `linear-gradient(to right, hsl(var(--primary)), hsl(var(--primary)/0.9) ${progress}%, hsl(var(--primary)/0.4) ${progress}%)`
+                        }}
+                        title={`${task.title} (${format(parseISO(task.startDate), 'MMM d')} - ${format(parseISO(task.endDate), 'MMM d')})`}
+                      >
+                         <div className="flex items-center w-full px-2">
+                           {task.assignee && (
+                              <Avatar className="h-6 w-6 border-2 border-background/50 flex-shrink-0">
+                                  <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
+                                  <AvatarFallback>{task.assignee.name.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                            )}
+                            <span className="ml-2 truncate text-sm font-medium">{task.title}</span>
+                         </div>
+                      </div>
                     </div>
                   );
                 })}
@@ -275,5 +264,3 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
-
-    
