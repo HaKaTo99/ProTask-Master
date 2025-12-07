@@ -99,7 +99,12 @@ const EditableCell = ({
     setIsEditing(true);
     if (type === 'date') {
       // For date, format to YYYY-MM-DD for the input
-      setCurrentValue(format(parseISO(value), 'yyyy-MM-dd'));
+      try {
+        setCurrentValue(format(parseISO(value), 'yyyy-MM-dd'));
+      } catch (e) {
+        console.error("Invalid date value for editing:", value);
+        setCurrentValue('');
+      }
     } else {
       setCurrentValue(value);
     }
@@ -114,7 +119,15 @@ const EditableCell = ({
       onSave(currentValue);
     } else {
       // Revert if date is invalid
-      setCurrentValue(value);
+       if (type === 'date') {
+        try {
+          setCurrentValue(format(parseISO(value), 'yyyy-MM-dd'));
+        } catch (e) {
+            setCurrentValue('');
+        }
+       } else {
+        setCurrentValue(value);
+       }
     }
   };
 
@@ -145,7 +158,14 @@ const EditableCell = ({
     );
   }
 
-  const displayValue = type === 'date' ? format(parseISO(value), 'd MMM yy') : value;
+  let displayValue = value;
+  if (type === 'date') {
+    try {
+      displayValue = format(parseISO(value), 'd MMM yy');
+    } catch (e) {
+      displayValue = "Invalid Date";
+    }
+  }
 
   return <div onDoubleClick={handleDoubleClick} className="truncate cursor-pointer">{displayValue}</div>;
 };
@@ -173,6 +193,7 @@ const GanttChart = () => {
 
   const [newDependency, setNewDependency] = useState<{
     sourceTaskId: string;
+    sourceHandle: 'start' | 'end';
     startX: number;
     startY: number;
     endX: number;
@@ -209,9 +230,29 @@ const GanttChart = () => {
   const handleCreateDependency = (sourceId: string, targetId: string) => {
     setAllTasks(prevTasks => {
         // Prevent adding self-dependency or duplicate dependency
+        const sourceTask = prevTasks.find(t => t.id === sourceId);
         const targetTask = prevTasks.find(t => t.id === targetId);
-        if (!targetTask || targetId === sourceId || targetTask.dependencies.includes(sourceId)) {
+
+        if (!sourceTask || !targetTask || targetId === sourceId || targetTask.dependencies.includes(sourceId)) {
           return prevTasks;
+        }
+        
+        // Circular dependency check
+        const visited = new Set<string>();
+        const stack = [sourceId];
+        while (stack.length > 0) {
+            const currentId = stack.pop()!;
+            if (visited.has(currentId)) continue;
+            visited.add(currentId);
+
+            const currentTask = prevTasks.find(t => t.id === currentId);
+            if (!currentTask) continue;
+
+            if(currentTask.id === targetId) return prevTasks; // Circular dependency found
+
+            for (const depId of currentTask.dependencies) {
+                stack.push(depId);
+            }
         }
 
         return prevTasks.map(task => 
@@ -259,10 +300,14 @@ const GanttChart = () => {
       if (parent && (parent.type === 'WBS' || parent.type === 'EPS')) {
           const children = tasksWithAssignees.filter(t => t.parentId === parent.id);
           if (children.length > 0) {
-            const startDates = children.map(c => parseISO(c.startDate));
-            const endDates = children.map(c => parseISO(c.endDate));
-            parent.startDate = new Date(Math.min(...startDates.map(d => d.getTime()))).toISOString();
-            parent.endDate = new Date(Math.max(...endDates.map(d => d.getTime()))).toISOString();
+            const startDates = children.map(c => parseISO(c.startDate)).filter(d => isValid(d));
+            const endDates = children.map(c => parseISO(c.endDate)).filter(d => isValid(d));
+            if (startDates.length > 0) {
+                parent.startDate = new Date(Math.min(...startDates.map(d => d.getTime()))).toISOString();
+            }
+            if (endDates.length > 0) {
+                parent.endDate = new Date(Math.max(...endDates.map(d => d.getTime()))).toISOString();
+            }
             
             // Recalculate parent's parent
             if (parent.parentId) {
@@ -342,24 +387,25 @@ const GanttChart = () => {
     const visited = new Set<string>();
     const finalTaskMap = new Map(tasksWithCriticalPath.map(task => [task.id, task]));
 
-    function visit(taskId: string) {
+    function visit(taskId: string, level: number = 0) {
         if (visited.has(taskId) || !finalTaskMap.has(taskId)) return;
         visited.add(taskId);
         
         const task = finalTaskMap.get(taskId);
         if (!task) return;
-
+        
+        (task as any).level = level;
         sortedTasks.push(task);
 
         const children = tasksWithCriticalPath
           .filter(t => t.parentId === taskId)
           .sort((a, b) => a.id.localeCompare(b.id));
 
-        children.forEach(child => visit(child.id));
+        children.forEach(child => visit(child.id, level + 1));
     }
 
     const rootNodes = tasksWithCriticalPath.filter(task => !task.parentId).sort((a,b) => a.id.localeCompare(b.id));
-    rootNodes.forEach(root => visit(root.id));
+    rootNodes.forEach(root => visit(root.id, 0));
 
     return sortedTasks;
   }, [tasksWithAssignees]);
@@ -391,17 +437,16 @@ const GanttChart = () => {
     // Reset cell width when time scale changes for a better default UX
     switch (timeScale) {
       case "Day":
-        setCellWidth(40);
+        setCellWidth(60);
         break;
       case "Week":
-        setCellWidth(20);
+        setCellWidth(80);
         break;
-ax
       case "Month":
-        setCellWidth(40);
+        setCellWidth(120);
         break;
       case "Year":
-        setCellWidth(100);
+        setCellWidth(150);
         break;
     }
   }, [timeScale]);
@@ -448,25 +493,18 @@ ax
       case "Week": {
         const yearStart = startOfYear(currentDate);
         const yearEnd = endOfYear(currentDate);
-        interval = { start: yearStart, end: yearEnd };
+        interval = { start: startOfWeek(yearStart, { weekStartsOn: 1 }), end: endOfWeek(yearEnd, { weekStartsOn: 1 }) };
         
-        secondaryHeaderDates = eachDayOfInterval(interval);
-        totalUnits = secondaryHeaderDates.length;
+        const weeksInInterval = eachWeekOfInterval(interval, { weekStartsOn: 1 });
+        totalUnits = weeksInInterval.length;
+        secondaryHeader = weeksInInterval.map(weekStart => ({ label: `W${getISOWeek(weekStart)}`, units: 1 }));
 
         const monthsInInterval = eachMonthOfInterval({ start: interval.start, end: interval.end });
         primaryHeader = monthsInInterval.map(monthStart => {
             const start = new Date(Math.max(interval.start.getTime(), monthStart.getTime()));
             const end = new Date(Math.min(interval.end.getTime(), endOfMonth(monthStart).getTime()));
-            const daysInMonth = differenceInDays(end, start) + 1;
-            return { label: format(monthStart, 'MMMM yyyy'), units: daysInMonth };
-        });
-        
-        const weeksInInterval = eachWeekOfInterval(interval, { weekStartsOn: 1 });
-        secondaryHeader = weeksInInterval.map(weekStart => {
-            const start = new Date(Math.max(interval.start.getTime(), weekStart.getTime()));
-            const end = new Date(Math.min(interval.end.getTime(), endOfWeek(weekStart, { weekStartsOn: 1 }).getTime()));
-            const daysInWeek = differenceInDays(end, start) + 1;
-            return { label: `W${getISOWeek(weekStart)}`, units: daysInWeek };
+            const weeksInMonth = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 }).length;
+            return { label: format(monthStart, 'MMMM yyyy'), units: weeksInMonth };
         });
         break;
       }
@@ -474,19 +512,17 @@ ax
         const yearStart = startOfYear(currentDate);
         const yearEnd = endOfYear(currentDate);
         interval = { start: yearStart, end: yearEnd };
-
-        secondaryHeaderDates = eachDayOfInterval(interval);
-        totalUnits = secondaryHeaderDates.length;
+        
+        secondaryHeader = eachMonthOfInterval(interval).map(monthStart => ({
+            label: format(monthStart, 'MMM'),
+            units: 1
+        }));
+        totalUnits = secondaryHeader.length;
         
         primaryHeader = eachYearOfInterval(interval).map(yearStart => ({
             label: format(yearStart, 'yyyy'),
-            units: differenceInDays(endOfYear(yearStart), startOfYear(yearStart)) + 1
+            units: 12
         }));
-        
-        secondaryHeader = eachMonthOfInterval(interval).map(monthStart => {
-            const daysInMonth = differenceInDays(endOfMonth(monthStart), monthStart) + 1;
-            return { label: format(monthStart, 'MMM'), units: daysInMonth };
-        });
         break;
       }
       case "Year": {
@@ -494,23 +530,17 @@ ax
         const fiveYearEnd = endOfYear(addYears(currentDate, 2));
         interval = { start: fiveYearStart, end: fiveYearEnd };
 
-        const months = eachMonthOfInterval(interval);
-        totalUnits = months.length;
-        
-        primaryHeader = eachYearOfInterval(interval).map(yearStart => ({
-            label: format(yearStart, 'yyyy'),
-            units: 12
-        }));
-
-        secondaryHeader = months.map(month => ({ 
-            label: format(month, 'MMM'), 
+        secondaryHeader = eachYearOfInterval(interval).map(year => ({ 
+            label: format(year, 'yyyy'), 
             units: 1 
         }));
+        totalUnits = secondaryHeader.length;
+        primaryHeader = [{ label: 'Years', units: totalUnits }];
         break;
       }
     }
 
-    const finalTimelineWidth = secondaryHeader.reduce((acc, h) => acc + (h.units * cellWidth), 0);
+    const finalTimelineWidth = totalUnits * cellWidth;
 
     return {
       interval,
@@ -522,6 +552,31 @@ ax
     };
   }, [timeScale, currentDate, cellWidth]);
   
+  const getUnitWidth = () => {
+    return cellWidth;
+  };
+
+  const getPositionFromDate = useCallback((date: Date) => {
+      if (!isValid(date)) return 0;
+      switch (timeScale) {
+        case 'Day': return differenceInDays(date, interval.start) * getUnitWidth();
+        case 'Week': return Math.floor(differenceInDays(date, interval.start) / 7) * getUnitWidth();
+        case 'Month': return differenceInMonths(date, interval.start) * getUnitWidth();
+        case 'Year': return differenceInMonths(date, startOfYear(interval.start)) / 12 * getUnitWidth();
+        default: return 0;
+      }
+  }, [timeScale, interval.start, getUnitWidth]);
+  
+  const getDateFromPosition = useCallback((x: number) => {
+    switch (timeScale) {
+      case 'Day': return addDays(interval.start, x / getUnitWidth());
+      case 'Week': return addDays(interval.start, (x / getUnitWidth()) * 7);
+      case 'Month': return addMonths(interval.start, x / getUnitWidth());
+      case 'Year': return addMonths(interval.start, (x / getUnitWidth()) * 12);
+      default: return interval.start;
+    }
+  }, [timeScale, interval.start, getUnitWidth]);
+  
   const getTaskPosition = useCallback((taskStartDateStr: string, taskEndDateStr: string) => {
     if (!taskStartDateStr || !taskEndDateStr) return { left: 0, width: 0};
     const taskStartDate = parseISO(taskStartDateStr);
@@ -530,28 +585,14 @@ ax
     if (!isValid(taskStartDate) || !isValid(taskEndDate) || !interval.start || !interval.end) {
       return { left: 0, width: 0};
     }
+    
+    const left = getPositionFromDate(taskStartDate);
+    const end = getPositionFromDate(addDays(taskEndDate, 1));
+    const width = Math.max(end - left, getUnitWidth() / 10);
+    
+    return { left, width };
 
-    switch (timeScale) {
-        case "Day":
-        case "Week":
-        case "Month":
-        {
-            const startOffset = Math.max(0, differenceInDays(taskStartDate, interval.start));
-            const duration = Math.max(1, differenceInDays(taskEndDate, taskStartDate) + 1);
-            const left = startOffset * cellWidth;
-            const width = duration * cellWidth;
-            return { left, width };
-        }
-        case "Year": {
-            const startOffset = Math.max(0, differenceInMonths(taskStartDate, interval.start));
-            const duration = Math.max(1, differenceInMonths(taskEndDate, taskStartDate) + 1);
-            const left = startOffset * cellWidth;
-            const width = duration * cellWidth;
-            return { left, width };
-        }
-    }
-    return {left: 0, width: 0};
-  }, [timeScale, interval, cellWidth]);
+  }, [getPositionFromDate, getUnitWidth]);
 
 
   const startResizing = useCallback((e: React.MouseEvent) => {
@@ -595,7 +636,7 @@ ax
     });
   };
 
-  const handleDependencyDragStart = (e: React.MouseEvent, sourceTaskId: string) => {
+  const handleDependencyDragStart = (e: React.MouseEvent, sourceTaskId: string, sourceHandle: 'start' | 'end') => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -606,6 +647,7 @@ ax
 
     setNewDependency({
         sourceTaskId,
+        sourceHandle,
         startX,
         startY,
         endX: startX,
@@ -616,42 +658,31 @@ ax
   const handleGlobalMouseMove = useCallback((e: MouseEvent) => {
     if (draggingInfo) {
       const dx = e.clientX - draggingInfo.initialX;
-      let unitsMoved = Math.round(dx / cellWidth);
       
-      let newStartDate = draggingInfo.initialStartDate;
-      let newEndDate = draggingInfo.initialEndDate;
-      let duration = differenceInDays(draggingInfo.initialEndDate, draggingInfo.initialStartDate);
-
-      if (timeScale === 'Year') {
-        if (draggingInfo.action === 'move') {
-            newStartDate = addMonths(draggingInfo.initialStartDate, unitsMoved);
-            newEndDate = addMonths(draggingInfo.initialEndDate, unitsMoved);
-        } else if (draggingInfo.action === 'resize-end') {
-            newEndDate = addMonths(draggingInfo.initialEndDate, unitsMoved);
-            if (newEndDate < newStartDate) newEndDate = newStartDate;
-        } else if (draggingInfo.action === 'resize-start') {
-            newStartDate = addMonths(draggingInfo.initialStartDate, unitsMoved);
-            if (newStartDate > newEndDate) newStartDate = newEndDate;
-        }
-      } else {
-          if (draggingInfo.action === 'move') {
-              newStartDate = addDays(draggingInfo.initialStartDate, unitsMoved);
-              newEndDate = addDays(newStartDate, duration);
-          } else if (draggingInfo.action === 'resize-end') {
-              newEndDate = addDays(draggingInfo.initialEndDate, unitsMoved);
-              if (newEndDate < newStartDate) newEndDate = newStartDate;
-          } else if (draggingInfo.action === 'resize-start') {
-              newStartDate = addDays(draggingInfo.initialStartDate, unitsMoved);
-              if (newStartDate > newEndDate) newStartDate = newEndDate;
-          }
+      const newStartDate = getDateFromPosition(getPositionFromDate(draggingInfo.initialStartDate) + dx);
+      const newEndDate = getDateFromPosition(getPositionFromDate(draggingInfo.initialEndDate) + dx);
+      const duration = differenceInDays(draggingInfo.initialEndDate, draggingInfo.initialStartDate);
+      
+      let finalStartDate = draggingInfo.initialStartDate;
+      let finalEndDate = draggingInfo.initialEndDate;
+      
+      if (draggingInfo.action === 'move') {
+          finalStartDate = newStartDate;
+          finalEndDate = addDays(newStartDate, duration);
+      } else if (draggingInfo.action === 'resize-end') {
+          finalEndDate = newEndDate;
+          if (finalEndDate < finalStartDate) finalEndDate = finalStartDate;
+      } else if (draggingInfo.action === 'resize-start') {
+          finalStartDate = newStartDate;
+          if (finalStartDate > finalEndDate) finalStartDate = finalEndDate;
       }
 
       setAllTasks(prevTasks => prevTasks.map(t => {
         if (t.id === draggingInfo.task.id) {
           return {
             ...t,
-            startDate: newStartDate.toISOString(),
-            endDate: newEndDate.toISOString(),
+            startDate: finalStartDate.toISOString(),
+            endDate: finalEndDate.toISOString(),
           };
         }
         return t;
@@ -662,13 +693,22 @@ ax
         const endY = e.clientY - rect.top;
         setNewDependency(prev => prev ? { ...prev, endX, endY } : null);
     }
-  }, [draggingInfo, cellWidth, timeScale, newDependency]);
+  }, [draggingInfo, getPositionFromDate, getDateFromPosition, newDependency]);
 
-  const handleGlobalMouseUp = useCallback(() => {
+  const handleGlobalMouseUp = useCallback((e: MouseEvent) => {
     if (draggingInfo) {
       setDraggingInfo(null);
     }
     if (newDependency) {
+      const targetElement = e.target as HTMLElement;
+      const targetTaskElement = targetElement.closest('[data-task-id]');
+      if (targetTaskElement) {
+        const targetTaskId = targetTaskElement.getAttribute('data-task-id');
+        const targetHandle = targetElement.getAttribute('data-handle-type');
+        if (targetTaskId && (targetHandle === 'start' || targetHandle === 'end')) {
+          handleCreateDependency(newDependency.sourceTaskId, targetTaskId);
+        }
+      }
       setNewDependency(null);
     }
   }, [draggingInfo, newDependency]);
@@ -712,31 +752,16 @@ ax
   if (currentDate && interval.start && interval.end) {
       const today = new Date();
       if (today >= interval.start && today <= interval.end) {
-          if (timeScale === 'Day' || timeScale === 'Month' || timeScale === 'Week') {
-              const todayOffset = differenceInDays(today, interval.start);
-              if (todayOffset >= 0) {
-                 todayPositionX = todayOffset * cellWidth;
-              }
-          }
-          if (timeScale === 'Year') {
-            const todayOffset = differenceInMonths(today, interval.start);
-            if (todayOffset >= 0) {
-              todayPositionX = todayOffset * cellWidth;
-            }
-          }
+        todayPositionX = getPositionFromDate(today);
       }
   }
 
- const getGridTemplate = (headerGroups: HeaderGroup[], cellWidth: number) => {
-    return headerGroups.map(g => `${g.units * cellWidth}px`).join(' ');
+ const getGridTemplate = (headerGroups: HeaderGroup[], width: number) => {
+    return headerGroups.map(g => `${g.units * width}px`).join(' ');
   }
 
-
   const getTaskLevel = (task: Task) => {
-    if (!task.parentId) return 0;
-    const parent = processedTasks.find(t => t.id === task.parentId);
-    if (!parent) return 1;
-    return getTaskLevel(parent) + 1;
+    return (task as any).level || 0;
   };
   
   const taskHasChildren = (taskId: string) => {
@@ -775,10 +800,10 @@ ax
                 ))}
             </div>
             <div className="flex items-center gap-2 w-40">
-                <span className="text-sm text-muted-foreground">Cell Width</span>
+                <span className="text-sm text-muted-foreground">Zoom</span>
                 <Slider
-                    min={timeScale === 'Year' ? 50 : (timeScale === 'Week' ? 10 : 20)}
-                    max={timeScale === 'Year' ? 200 : (timeScale === 'Month' ? 80 : 80)}
+                    min={timeScale === 'Year' ? 100 : (timeScale === 'Month' ? 50 : (timeScale === 'Week' ? 20 : 30))}
+                    max={timeScale === 'Year' ? 300 : (timeScale === 'Month' ? 200 : (timeScale === 'Week' ? 150 : 100))}
                     step={5}
                     value={[cellWidth]}
                     onValueChange={(value) => setCellWidth(value[0])}
@@ -865,12 +890,9 @@ ax
                  <div className="grid" style={{ gridTemplateColumns: getGridTemplate(secondaryHeader, cellWidth) }}>
                   {secondaryHeader.map((group, i) => {
                      let isWeekend = false;
-                     if((timeScale === 'Day' || timeScale === 'Week') && secondaryHeaderDates[i]) {
+                     if((timeScale === 'Day') && secondaryHeaderDates[i]) {
                          const day = secondaryHeaderDates[i];
                          isWeekend = isSaturday(day) || isSunday(day);
-                     } else if (timeScale === 'Month') {
-                        const day = secondaryHeaderDates[i];
-                        if (day) isWeekend = isSaturday(day) || isSunday(day);
                      }
                     
                     return (
@@ -891,7 +913,7 @@ ax
                 <div className="absolute inset-0 grid" style={{ gridTemplateColumns: getGridTemplate(secondaryHeader, cellWidth) }}>
                   { secondaryHeader.map((_, i) => {
                      let isWeekend = false;
-                      if ((timeScale === 'Day' || timeScale === 'Week' || timeScale === 'Month') && secondaryHeaderDates[i]) {
+                      if ((timeScale === 'Day') && secondaryHeaderDates[i]) {
                         const day = secondaryHeaderDates[i];
                         if (day) {
                           isWeekend = isSaturday(day) || isSunday(day);
@@ -913,7 +935,7 @@ ax
 
                 {/* Today Marker */}
                 {todayPositionX !== -1 && (
-                  <div className="absolute top-0 h-full w-px bg-primary z-20" style={{ left: `${todayPositionX + cellWidth / 2}px` }}>
+                  <div className="absolute top-0 h-full w-px bg-primary z-20" style={{ left: `${todayPositionX}` }}>
                     <div className="absolute -top-1 -translate-x-1/2 left-1/2 bg-primary text-primary-foreground text-xs font-bold rounded-full px-1.5 py-0.5">
                       Today
                     </div>
@@ -929,34 +951,56 @@ ax
                      <marker id="arrowhead-critical" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
                       <polygon points="0 0, 8 3, 0 6" className="fill-accent" />
                     </marker>
+                    <marker id="line-dot" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                        <circle cx="3" cy="3" r="1.5" className="fill-muted-foreground/50" />
+                    </marker>
+                    <marker id="line-dot-critical" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                        <circle cx="3" cy="3" r="1.5" className="fill-accent" />
+                    </marker>
                   </defs>
                   {/* Existing Dependencies */}
                   {tasks.map((task) => 
                     task.dependencies.map(depId => {
                       const fromNode = nodeMap.get(depId);
                       const toNode = nodeMap.get(task.id);
-                      if (!fromNode || !toNode) return null;
+                      if (!fromNode || !toNode || !isValid(fromNode.endDate) || !isValid(toNode.startDate)) return null;
 
                       const isCritical = fromNode.isCritical && toNode.isCritical;
-                      const isMilestone = fromNode.startDate.getTime() === fromNode.endDate.getTime();
                       const fromPosition = getTaskPosition(fromNode.startDate.toISOString(), fromNode.endDate.toISOString());
-                      const fromX = fromPosition.left + (isMilestone ? cellWidth / 2 : fromPosition.width);
-
-                      const toPosition = getTaskPosition(toNode.startDate.toISOString(), toNode.endDate.toISOString());
-                      const toX = toPosition.left;
+                      
+                      const fromX = fromPosition.left + fromPosition.width;
+                      const toX = getTaskPosition(toNode.startDate.toISOString(), toNode.endDate.toISOString()).left;
                       
                       const startPointX = fromX;
                       const endPointX = toX - 8; // Offset for arrowhead
-                      const curve = 30;
+                      const connectorOffset = 20;
 
+                      if (endPointX < startPointX + connectorOffset) {
+                           // Complex path for wrapping around
+                           return (
+                             <path
+                               key={`${depId}-${task.id}`}
+                               d={`M ${startPointX} ${fromNode.y} H ${startPointX + connectorOffset} V ${(fromNode.y + toNode.y) / 2} H ${endPointX - connectorOffset} V ${toNode.y} H ${endPointX}`}
+                               stroke={isCritical ? "hsl(var(--accent))" : "hsl(var(--muted-foreground) / 0.5)"}
+                               strokeWidth="1.5"
+                               fill="none"
+                               markerEnd={isCritical ? "url(#arrowhead-critical)" : "url(#arrowhead)"}
+                               markerStart={isCritical ? "url(#line-dot-critical)" : "url(#line-dot)"}
+                               markerMid={isCritical ? "url(#line-dot-critical)" : "url(#line-dot)"}
+                             />
+                           )
+                      }
+                      
                       return (
                         <path 
                           key={`${depId}-${task.id}`}
-                          d={`M ${startPointX} ${fromNode.y} C ${startPointX + curve} ${fromNode.y}, ${endPointX - curve} ${toNode.y}, ${endPointX} ${toNode.y}`}
+                          d={`M ${startPointX} ${fromNode.y} H ${startPointX + connectorOffset} V ${toNode.y} H ${endPointX}`}
                           stroke={isCritical ? "hsl(var(--accent))" : "hsl(var(--muted-foreground) / 0.5)"}
                           strokeWidth="1.5"
                           fill="none"
                           markerEnd={isCritical ? "url(#arrowhead-critical)" : "url(#arrowhead)"}
+                          markerStart={isCritical ? "url(#line-dot-critical)" : "url(#line-dot)"}
+                          markerMid={isCritical ? "url(#line-dot-critical)" : "url(#line-dot)"}
                         />
                       )
                     })
@@ -978,6 +1022,7 @@ ax
                 {/* Task Bars & Milestones */}
                 {tasks.map((task, index) => {
                   const { left, width } = getTaskPosition(task.startDate, task.endDate);
+                  if (width === 0 && left === 0) return null; // Don't render invalid tasks
                   const progress = statusProgress[task.status] || 0;
                   const isSummary = task.type !== 'Activity';
                   const isMilestone = task.startDate === task.endDate;
@@ -988,10 +1033,11 @@ ax
                         <TooltipTrigger asChild>
                           <div
                             className="absolute top-0 flex items-center justify-center z-10"
+                            data-task-id={task.id}
                             style={{
-                              left: `${left + cellWidth / 2}px`,
+                              left: `${left}`-10,
                               top: `${index * ROW_HEIGHT_PX + (ROW_HEIGHT_PX / 2)}px`,
-                              transform: 'translateX(-50%) translateY(-50%)',
+                              transform: 'translateY(-50%)',
                             }}
                           >
                             <Diamond className={cn("h-6 w-6", task.isCritical ? "text-accent fill-accent" : "text-foreground fill-foreground" )} />
@@ -1011,6 +1057,7 @@ ax
                     <div 
                       key={task.id} 
                       className="absolute group flex items-center"
+                      data-task-id={task.id}
                       style={{ 
                         top: `${index * ROW_HEIGHT_PX}px`,
                         left: `${left}px`, 
@@ -1080,19 +1127,20 @@ ax
                        {/* Dependency handles */}
                       {isDraggable && (
                         <>
-                          <div 
-                            onMouseDown={(e) => handleDependencyDragStart(e, task.id)}
-                            onMouseUp={() => newDependency && handleCreateDependency(newDependency.sourceTaskId, task.id)}
+                           <div 
+                            data-handle-type="start"
+                            data-task-id={task.id}
+                            onMouseDown={(e) => handleDependencyDragStart(e, task.id, 'start')}
                             className="absolute left-[-6px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-background cursor-crosshair opacity-0 group-hover:opacity-100 transition-opacity z-30" 
                           />
                           <div
-                            onMouseDown={(e) => handleDependencyDragStart(e, task.id)}
-                            onMouseUp={() => newDependency && handleCreateDependency(newDependency.sourceTaskId, task.id)}
+                            data-handle-type="end"
+                            data-task-id={task.id}
+                            onMouseDown={(e) => handleDependencyDragStart(e, task.id, 'end')}
                             className="absolute right-[-6px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-background cursor-crosshair opacity-0 group-hover:opacity-100 transition-opacity z-30" 
                           />
                         </>
                       )}
-
                     </div>
                   );
                 })}
@@ -1107,5 +1155,3 @@ ax
 };
 
 export default GanttChart;
-
-    
