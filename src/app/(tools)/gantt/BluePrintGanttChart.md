@@ -1,158 +1,99 @@
-# BluePrint: Membangun Gantt Chart Profesional di React
+# BluePrint: Membangun Gantt Chart Interaktif & Profesional di React
 
-Dokumen ini berfungsi sebagai panduan teknis untuk membuat komponen Gantt Chart yang interaktif, modern, dan profesional menggunakan React, Next.js, TypeScript, dan Tailwind CSS.
+Dokumen ini berfungsi sebagai panduan teknis komprehensif untuk arsitektur dan implementasi komponen Gantt Chart yang canggih. Komponen ini dibangun menggunakan React, Next.js, TypeScript, `date-fns`, dan Tailwind CSS.
 
-## 1. Tujuan & Fitur Utama
+## 1. Visi & Fitur Utama
 
-- **Visualisasi Timeline Proyek:** Menampilkan tugas-tugas dalam sebuah timeline berdasarkan tanggal mulai dan selesai.
-- **Tampilan Grid Terstruktur:** Membagi antarmuka menjadi dua bagian: daftar detail tugas di sisi kiri dan representasi visual (bilah tugas) di sisi kanan.
-- **Visualisasi Dependensi:** Menggambarkan hubungan antar tugas menggunakan garis penghubung.
-- **Indikator Progres:** Menampilkan kemajuan setiap tugas langsung pada bilah tugasnya.
-- **Desain Responsif & Profesional:** Memastikan tampilan tetap fungsional dan menarik di berbagai ukuran layar.
+Tujuannya adalah menciptakan komponen Gantt Chart yang tidak hanya menampilkan data, tetapi juga berfungsi sebagai alat manajemen proyek yang dinamis dan interaktif.
 
-## 2. Struktur Komponen (`GanttChart.tsx`)
+- **Visualisasi Timeline & Hirarki:** Menampilkan tugas dalam struktur hirarkis (EPS, WBS, Activity) yang dapat diciutkan (`collapsible`).
+- **Skala Waktu Dinamis:** Mendukung berbagai skala waktu (Hari, Minggu, Bulan, Tahun) dengan kemampuan zoom.
+- **Kalkulasi Jalur Kritis:** Mengidentifikasi dan menyorot secara visual tugas-tugas yang krusial bagi penyelesaian proyek.
+- **Interaktivitas Penuh:**
+    - **Inline Editing:** Mengedit judul dan tanggal tugas langsung di tabel.
+    - **Drag-and-Drop:** Menggeser (move) dan mengubah durasi (resize) bar tugas di timeline.
+    - **Pembuatan Dependensi Visual:** Membuat hubungan antar tugas dengan menarik garis dari satu bar ke bar lainnya.
+- **Visualisasi Baseline:** Membandingkan jadwal aktual dengan rencana awal (baseline) untuk analisis kinerja.
+- **UI/UX Modern:** Desain yang bersih, responsif, dan profesional dengan `shadcn/ui`.
+- **Dialog Editor Tugas:** Menyediakan antarmuka modal untuk pengeditan detail tugas yang komprehensif.
 
-Komponen utama akan dibagi menjadi beberapa bagian logis untuk kemudahan pengelolaan.
+## 2. Arsitektur & State Management
 
-### A. Layout Utama
+### A. State Utama (`gantt/page.tsx`)
 
-Layout dasar menggunakan **CSS Grid** untuk menciptakan dua kolom yang dapat di-scroll secara independen namun tetap sinkron secara vertikal.
+Komponen utama mengelola beberapa state krusial menggunakan hook `useState`:
 
-```jsx
-<div className="grid" style={{ gridTemplateColumns: "minmax(350px, 1.2fr) 2fr" }}>
-  {/* Kolom Kiri: Detail Tugas */}
-  <div>...</div>
+- `allTasks`: `Task[]` - Menjadi satu-satunya sumber kebenaran (Single Source of Truth) untuk semua data tugas. Data ini dimuat ke dalam state agar bisa dimodifikasi secara dinamis.
+- `collapsed`: `Set<string>` - Menyimpan ID dari tugas induk (WBS/EPS) yang sedang diciutkan untuk mengontrol visibilitas tugas anak.
+- `timeScale`: `"Day" | "Week" | "Month" | "Year"` - Mengontrol unit waktu yang ditampilkan di header timeline.
+- `cellWidth`: `number` - Mengatur lebar setiap sel di timeline, berfungsi sebagai mekanisme zoom.
+- `draggingInfo`: `object | null` - Melacak state saat operasi drag-and-drop berlangsung (tugas yang di-drag, tipe aksi, posisi awal).
+- `newDependency`: `object | null` - Melacak state saat pengguna sedang membuat garis dependensi baru.
+- `editingTask`: `Task | null` - Mengontrol visibilitas dialog editor tugas dan menyimpan data tugas yang sedang diedit.
 
-  {/* Kolom Kanan: Timeline */}
-  <div>...</div>
-</div>
-```
+### B. Memoization untuk Performa (`useMemo`)
 
-- **Kolom Kiri:** Memiliki lebar minimum `350px` dan dapat membesar (`1.2fr`).
-- **Kolom Kanan:** Mengambil sisa ruang yang tersedia (`2fr`).
+Kalkulasi yang berat dioptimalkan menggunakan `useMemo` untuk mencegah eksekusi ulang pada setiap render.
 
-### B. State & Data Handling
+- `processedTasks`: Menggabungkan data tugas dengan data `assignee`, menghitung ulang tanggal mulai/selesai untuk tugas WBS/EPS berdasarkan anak-anaknya, dan **menghitung jalur kritis**.
+- `tasks`: Memfilter `processedTasks` untuk hanya menampilkan tugas yang terlihat (tidak berada di bawah induk yang diciutkan).
+- `interval`, `primaryHeader`, `secondaryHeader`: Menghitung rentang waktu dan label untuk header timeline berdasarkan `timeScale` dan `currentDate`.
 
-- **Manajemen Waktu:** Gunakan library `date-fns` untuk semua operasi tanggal.
-  - `startOfMonth`, `endOfMonth`: Menentukan rentang bulan yang ditampilkan.
-  - `eachDayOfInterval`: Membuat array tanggal untuk header timeline.
-  - `differenceInDays`: Menghitung durasi dan posisi tugas.
-  - `parseISO`: Mengonversi string tanggal dari data menjadi objek `Date`.
+## 3. Implementasi Fitur Kunci
 
-- **Kalkulasi Posisi & Lebar Bilah Tugas:**
-  Buat fungsi `getTaskPosition` untuk menghitung posisi (`left`) dan lebar (`width`) setiap bilah tugas dalam persentase.
+### A. Kalkulasi Jalur Kritis (Critical Path Method)
 
-  ```typescript
-  const getTaskPosition = (taskStartDate: string, taskEndDate: string) => {
-    // 1. Hitung selisih hari dari awal bulan ke tanggal mulai tugas.
-    const startOffset = differenceInDays(parseISO(taskStartDate), monthStart);
+- **Lokasi:** Di dalam `useMemo` untuk `processedTasks`.
+- **Algoritma:**
+    1.  **Inisialisasi:** Semua tugas di-filter untuk memastikan memiliki tanggal valid. Durasi setiap tugas dihitung.
+    2.  **Forward Pass:** Iterasi dari awal proyek untuk menghitung **Earliest Start (ES)** dan **Earliest Finish (EF)** untuk setiap tugas. ES tugas ditentukan oleh EF maksimum dari semua tugas pendahulunya (dependencies).
+    3.  **Backward Pass:** Iterasi dari akhir proyek (mundur) untuk menghitung **Latest Start (LS)** dan **Latest Finish (LF)**. LF tugas ditentukan oleh LS minimum dari semua tugas penerusnya.
+    4.  **Kalkulasi Slack:** Dihitung dengan `slack = LS - ES`.
+    5.  **Identifikasi Jalur Kritis:** Tugas dengan `slack <= 1` (toleransi kecil untuk pembulatan) dianggap sebagai bagian dari jalur kritis dan diberi properti `isCritical: true`.
 
-    // 2. Hitung durasi tugas dalam hari.
-    const duration = differenceInDays(parseISO(taskEndDate), parseISO(taskStartDate)) + 1;
+### B. Interaktivitas Drag-and-Drop
 
-    // 3. Konversi offset dan durasi menjadi persentase.
-    const left = (startOffset / totalDays) * 100;
-    const width = (duration / totalDays) * 100;
+- **State Management:** Menggunakan state `draggingInfo`.
+- **Mekanisme:**
+    1.  **`onMouseDown`:** Diterapkan pada bar tugas (untuk `move`) dan pada *handle* di ujung bar (untuk `resize-start` dan `resize-end`). Event ini mengisi state `draggingInfo` dengan detail tugas, tipe aksi, dan posisi awal mouse.
+    2.  **`mousemove` Listener (Global):** Ditambahkan ke `window` saat `draggingInfo` aktif. Event ini menghitung `deltaX` dari pergerakan mouse.
+    3.  **Konversi Posisi ke Tanggal:** Fungsi `getDateFromPosition` digunakan untuk mengubah posisi piksel mouse menjadi objek `Date` baru.
+    4.  **Pembaruan State:** State `allTasks` diperbarui secara *real-time* saat mouse bergerak, memberikan umpan balik visual instan.
+    5.  **`mouseup` Listener (Global):** Mengosongkan state `draggingInfo` untuk mengakhiri operasi.
 
-    return { left, width };
-  };
-  ```
+### C. Pembuatan Dependensi Visual
 
-## 3. Implementasi Detail Komponen
+- **State Management:** Menggunakan state `newDependency`.
+- **Mekanisme:**
+    1.  **`onMouseDown` pada Dependency Handle:** Lingkaran kecil di ujung bar tugas memiliki event ini. Ini akan mengisi state `newDependency` dengan ID tugas sumber dan posisi awal.
+    2.  **Garis Pratinjau:** Selama `newDependency` aktif, sebuah elemen `<line>` SVG digambar dari titik awal ke posisi kursor mouse saat ini.
+    3.  **`onMouseUp` pada Handle Target:** Ketika mouse dilepaskan di atas *handle* tugas lain yang valid, fungsi `handleCreateDependency` dipanggil.
+    4.  **Validasi:** Fungsi ini melakukan validasi untuk mencegah dependensi duplikat atau dependensi sirkular.
+    5.  **Pembaruan State:** Jika valid, ID tugas sumber ditambahkan ke array `dependencies` milik tugas target. Komponen akan me-render ulang dan menampilkan garis dependensi permanen yang baru.
 
-### A. Kolom Kiri: Tabel Tugas
+### D. Inline Editing (`EditableCell`)
 
-Gunakan komponen `<Table>` dari ShadCN untuk menampilkan daftar tugas.
+- **Komponen:** Sebuah komponen internal yang menerima `value` dan callback `onSave`.
+- **Mekanisme:**
+    1.  **State Lokal:** Komponen ini memiliki state internal `isEditing`.
+    2.  **`onDoubleClick`:** Mengubah `isEditing` menjadi `true`, yang secara kondisional me-render elemen `<input>`.
+    3.  **Tipe Input:** Komponen dapat menangani tipe data berbeda (misalnya, `text` atau `date`) untuk me-render input yang sesuai.
+    4.  **`onBlur` atau `onKeyDown` (Enter):** Menyimpan perubahan dengan memanggil `onSave` dan mengubah `isEditing` kembali menjadi `false`.
 
-- **Struktur:** `Table`, `TableHeader`, `TableHead`, `TableBody`, `TableRow`, `TableCell`.
-- **Header Tabel:** Buat header yang *sticky* (tetap terlihat saat di-scroll) dengan latar belakang blur untuk efek modern.
-- **Isi Tabel:** Ulangi (map) data `tasks` untuk membuat baris tabel. Tampilkan `task.title`, `task.startDate`, dan `task.endDate`. Format tanggal menggunakan `format` dari `date-fns`.
-- **Sinkronisasi Tinggi Baris:** Pastikan setiap `TableRow` memiliki tinggi yang sama dengan baris pada timeline (misalnya, `h-14` atau `56px`) agar tetap sejajar.
+### E. Visualisasi Baseline
 
-```jsx
-<div className="border-r overflow-y-auto">
-  <Table>
-    <TableHeader className="sticky top-0 bg-secondary/80 backdrop-blur-sm z-10">
-      <TableRow className="h-14">
-        <TableHead>Task</TableHead>
-        <TableHead>Start</TableHead>
-        <TableHead>End</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {tasks.map((task) => (
-        <TableRow key={task.id} className="h-14">
-          {/* ... TableCell untuk setiap data ... */}
-        </TableRow>
-      ))}
-    </TableBody>
-  </Table>
-</div>
-```
+- **Tombol "Set Baseline":** Sebuah `Button` yang saat diklik, mengiterasi semua tugas dan menyalin `startDate` dan `endDate` ke properti baru: `baselineStartDate` dan `baselineEndDate`.
+- **Rendering:**
+    - Di dalam `map` tugas pada timeline, jika `baselineStartDate` ada, sebuah `div` tambahan dirender.
+    - `div` ini diposisikan secara absolut di bawah bar tugas utama dengan warna abu-abu (`bg-muted-foreground/50`).
+    - Posisinya (`left`, `width`) dihitung menggunakan fungsi `getTaskPosition` yang sama, tetapi dengan menggunakan tanggal *baseline*.
+    - Indikator deviasi (segitiga) ditampilkan untuk menunjukkan keterlambatan atau percepatan dari rencana awal.
 
-### B. Kolom Kanan: Timeline Visual
+### F. Dialog Editor Tugas (`TaskEditorDialog.tsx`)
 
-Ini adalah bagian paling kompleks, terdiri dari beberapa lapisan.
+- **Trigger:** Dipicu oleh event `onDoubleClick` pada bar tugas, yang mengatur state `editingTask`.
+- **Struktur:** Menggunakan komponen `Dialog` dari `shadcn/ui` yang berisi `Tabs` untuk mengorganisir informasi.
+- **State Lokal:** Dialog ini memiliki state `editedTask` sendiri, yang diinisialisasi dengan data dari prop `task`. Ini memungkinkan pengguna untuk membuat perubahan tanpa secara langsung memengaruhi state global hingga tombol "Save" diklik.
+- **Fungsi:** Menyediakan tombol `Save`, `Delete`, dan `Cancel` untuk manajemen tugas yang komprehensif.
 
-1.  **Container Timeline:**
-    - Buat `div` yang memungkinkan scroll horizontal (`overflow-x-auto`).
-    - Di dalamnya, buat `div` relatif dengan `minWidth` yang dihitung berdasarkan jumlah hari dikali lebar per hari (misal, `totalDays * 60px`).
-
-2.  **Header Timeline (Tanggal):**
-    - Gunakan CSS Grid untuk membuat kolom-kolom tanggal.
-    - Buat header `sticky` agar tetap terlihat.
-    - Ulangi (map) array `daysInMonth` untuk menampilkan nama hari (`E`) dan tanggal (`d`).
-
-    ```jsx
-    <div className="sticky top-0 z-20 grid bg-secondary/80 backdrop-blur-sm" style={{ gridTemplateColumns: `repeat(${totalDays}, 60px)` }}>
-      {daysInMonth.map((day, i) => (
-        <div key={i} className="h-14 flex flex-col items-center justify-center border-r border-b">
-          <span className="text-xs">{format(day, 'E')}</span>
-          <span className="font-bold text-lg">{format(day, 'd')}</span>
-        </div>
-      ))}
-    </div>
-    ```
-
-3.  **Area Konten Timeline (Bilah Tugas & Dependensi):**
-    - Buat `div` relatif dengan tinggi total yang dihitung dari jumlah tugas dikali tinggi baris (misal, `tasks.length * 56px`).
-    - Lapisan ini akan menampung SVG untuk garis dependensi dan div untuk setiap bilah tugas.
-
-4.  **Lapisan Garis Dependensi (SVG):**
-    - Gunakan elemen `<svg>` yang absolut untuk menutupi seluruh area konten. Ini memastikan garis digambar di atas grid latar belakang tetapi di bawah bilah tugas.
-    - Definisikan marker (`<marker>`) untuk ujung panah.
-    - Ulangi (map) setiap tugas dan dependensinya. Untuk setiap dependensi, gambar elemen `<path>` dari tugas sumber ke tugas target.
-    - Koordinat `d` pada path dihitung berdasarkan posisi X (waktu) dan Y (baris tugas) dari node sumber dan target.
-
-5.  **Lapisan Bilah Tugas:**
-    - Ulangi (map) data `tasks`.
-    - Untuk setiap tugas, buat `div` yang diposisikan secara absolut berdasarkan `index` barisnya.
-    - Di dalamnya, buat `div` lain yang mewakili bilah tugas. Gunakan `style={{ left, width }}` dari fungsi `getTaskPosition` untuk menempatkannya di timeline.
-    - Terapkan warna berdasarkan prioritas tugas.
-    - Tambahkan `div` di dalamnya untuk merepresentasikan progres tugas, dengan lebar yang dikontrol oleh `statusProgress`.
-
-    ```jsx
-    <div
-      className="absolute h-8 top-1/2 -translate-y-1/2 flex items-center ..."
-      style={{ left: `${left}%`, width: `${width}%`}}
-    >
-       <div className={`absolute inset-0 rounded-sm ${priorityColors[task.priority]}`}>
-          {/* Indikator Progres */}
-          <div
-            className="absolute inset-y-0 left-0 bg-black/20"
-            style={{ width: `${progress}%`}}
-          ></div>
-       </div>
-       <span className="relative truncate text-white text-xs z-10 ml-2">{task.title}</span>
-    </div>
-    ```
-
-## 4. Styling & Profesionalisme
-
-- **Konsistensi Tinggi:** Pastikan tinggi baris (`ROW_HEIGHT_PX`) konsisten di seluruh komponen, baik di tabel kiri maupun di timeline kanan.
-- **Warna Tematik:** Gunakan variabel warna dari `globals.css` (misalnya `hsl(var(--primary))`) agar konsisten dengan tema aplikasi.
-- **Efek Hover:** Tambahkan transisi halus (`transition-all`, `duration-200`) untuk memberikan umpan balik visual saat berinteraksi dengan elemen.
-- **Tipografi:** Gunakan ukuran dan ketebalan font yang sesuai untuk keterbacaan (misalnya, `font-bold` untuk judul, `text-muted-foreground` untuk teks sekunder).
-- **Avatar:** Tampilkan avatar assignee di sebelah bilah tugas untuk memberikan konteks visual yang cepat.
-
-Dengan mengikuti blueprint ini, Anda dapat membangun komponen Gantt Chart yang tidak hanya fungsional tetapi juga memiliki tampilan dan nuansa profesional seperti aplikasi-aplikasi modern.
+Dengan menggabungkan semua elemen ini, kita telah berhasil membangun komponen Gantt Chart yang sangat dinamis, interaktif, dan kaya fitur, setara dengan banyak solusi komersial.
