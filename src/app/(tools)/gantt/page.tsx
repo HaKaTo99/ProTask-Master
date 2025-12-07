@@ -20,6 +20,9 @@ import {
   eachMonthOfInterval,
   differenceInYears,
   addDays,
+  addMonths,
+  isLastDayOfMonth,
+  lastDayOfMonth,
 } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -105,15 +108,21 @@ const GanttChart = () => {
         break;
       }
       case "Week": {
-        interval = { start: startOfWeek(projectStart), end: endOfWeek(projectEnd) };
-        totalUnits = differenceInWeeks(interval.end, interval.start, { weekStartsOn: 1 }) + 1;
-        const months = eachMonthOfInterval(interval);
-        primaryHeader = months.map(monthStart => {
-            const startOfNextMonth = startOfMonth(addDays(monthStart, 32));
-            let weeksInMonth = differenceInWeeks(startOfNextMonth, monthStart, { weekStartsOn: 1 });
+        interval = { start: startOfWeek(projectStart, { weekStartsOn: 1 }), end: endOfWeek(projectEnd, { weekStartsOn: 1 }) };
+        const weeks = eachWeekOfInterval(interval, { weekStartsOn: 1 });
+        totalUnits = weeks.length;
+
+        const monthsInInterval = eachMonthOfInterval(interval);
+        
+        primaryHeader = monthsInInterval.map(monthStart => {
+            const weeksInMonth = weeks.filter(weekStart => {
+                return weekStart.getMonth() === monthStart.getMonth() && weekStart.getFullYear() === monthStart.getFullYear();
+            }).length;
+
             return { label: format(monthStart, 'MMMM yyyy'), units: weeksInMonth };
-        });
-        secondaryHeader = eachWeekOfInterval(interval, { weekStartsOn: 1 }).map(week => ({ 
+        }).filter(group => group.units > 0);
+        
+        secondaryHeader = weeks.map(week => ({ 
             label: `W${format(week, 'w')}`, units: 1 
         }));
         break;
@@ -154,14 +163,16 @@ const GanttChart = () => {
 
     if (!interval.start || !interval.end) return { left: 0, width: 0};
 
+    const weekOptions = { weekStartsOn: 1 as const };
+
     switch (timeScale) {
         case "Day":
             startOffset = differenceInDays(taskStartDate, interval.start);
             duration = differenceInDays(taskEndDate, taskStartDate) + 1;
             break;
         case "Week":
-            startOffset = differenceInWeeks(taskStartDate, interval.start, { weekStartsOn: 1 });
-            duration = Math.max(1, differenceInWeeks(taskEndDate, taskStartDate, { weekStartsOn: 1 }));
+            startOffset = differenceInWeeks(taskStartDate, interval.start, weekOptions);
+            duration = Math.max(1, differenceInWeeks(taskEndDate, taskStartDate, weekOptions) + 1);
             break;
         case "Month":
             startOffset = differenceInMonths(taskStartDate, interval.start);
@@ -304,9 +315,9 @@ const GanttChart = () => {
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
               <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm">
-                <div className="grid" style={{ gridTemplateColumns: `repeat(${primaryHeader.reduce((acc, g) => acc + g.units, 0)}, ${cellWidth}px)` }}>
+                <div className="grid" style={{ gridTemplateColumns: primaryHeader.map(g => `${g.units * cellWidth}px`).join(' ') }}>
                   {primaryHeader.map((group, i) => (
-                    <div key={i} className="h-7 flex items-center justify-center border-r border-b border-border/50" style={{ gridColumn: `span ${group.units}` }}>
+                    <div key={i} className="h-7 flex items-center justify-center border-r border-b border-border/50">
                       <span className="font-semibold text-sm">{group.label}</span>
                     </div>
                   ))}
@@ -427,6 +438,8 @@ const GanttChart = () => {
 
 export default GanttChart;
  
+    
+
     
 
     
