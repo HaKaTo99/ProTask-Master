@@ -24,6 +24,7 @@ import {
   subMonths,
   eachYearOfInterval,
   getDay,
+  subYears,
 } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -72,7 +73,7 @@ const GanttChart = () => {
         setCellWidth(30);
         break;
       case "Year":
-        setCellWidth(500);
+        setCellWidth(100);
         break;
     }
   }, [timeScale]);
@@ -85,14 +86,11 @@ const GanttChart = () => {
     totalUnits,
     timelineWidth,
   } = useMemo(() => {
-    let interval;
+    let interval: { start: Date, end: Date };
     let primaryHeader: HeaderGroup[] = [];
     let secondaryHeader: HeaderGroup[] = [];
     let secondaryHeaderDates: Date[] = [];
     let totalUnits = 0;
-
-    const projectStart = new Date(Math.min(...tasks.map(t => parseISO(t.startDate).getTime())));
-    const projectEnd = new Date(Math.max(...tasks.map(t => parseISO(t.endDate).getTime())));
 
     switch (timeScale) {
       case "Day": {
@@ -148,26 +146,33 @@ const GanttChart = () => {
         const currentMonthStart = startOfMonth(currentDate);
         interval = { start: subMonths(currentMonthStart, 1), end: endOfMonth(addMonths(currentMonthStart, 1)) };
         secondaryHeaderDates = eachDayOfInterval(interval);
-        totalUnits = differenceInDays(interval.end, interval.start) + 1;
+        totalUnits = secondaryHeaderDates.length;
         
-        const months = eachMonthOfInterval(interval);
-        primaryHeader = months.map(monthStart => {
-          const monthEnd = endOfMonth(monthStart);
-          const daysInMonth = differenceInDays(monthEnd, monthStart) + 1;
-          return { label: format(monthStart, 'MMMM yyyy'), units: daysInMonth };
-        });
+        primaryHeader = eachMonthOfInterval(interval).map(monthStart => ({
+          label: format(monthStart, 'MMMM yyyy'),
+          units: differenceInDays(endOfMonth(monthStart), monthStart) + 1
+        }));
 
         secondaryHeader = secondaryHeaderDates.map(day => ({ label: format(day, 'd'), units: 1 }));
         break;
       }
       case "Year": {
-        const startYear = startOfYear(projectStart);
-        const endYear = endOfYear(projectEnd);
-        interval = { start: startYear, end: endYear };
-        secondaryHeaderDates = Array.from({ length: differenceInYears(endYear, startYear) + 1 }, (_, i) => addYears(startYear, i));
-        totalUnits = secondaryHeaderDates.length;
-        primaryHeader = [{ label: 'Years', units: totalUnits }];
-        secondaryHeader = secondaryHeaderDates.map(year => ({ label: format(year, 'yyyy'), units: 1 }));
+        const fiveYearStart = startOfYear(subYears(currentDate, 2));
+        const fiveYearEnd = endOfYear(addYears(currentDate, 2));
+        interval = { start: fiveYearStart, end: fiveYearEnd };
+
+        const months = eachMonthOfInterval(interval);
+        totalUnits = months.length;
+        
+        primaryHeader = eachYearOfInterval(interval).map(yearStart => ({
+            label: format(yearStart, 'yyyy'),
+            units: 12
+        }));
+
+        secondaryHeader = months.map(month => ({ 
+            label: format(month, 'MMM'), 
+            units: 1 
+        }));
         break;
       }
     }
@@ -186,9 +191,6 @@ const GanttChart = () => {
     const taskStartDate = parseISO(taskStartDateStr);
     const taskEndDate = parseISO(taskEndDateStr);
 
-    let startOffset = 0;
-    let duration = 0;
-
     if (!interval.start || !interval.end) return { left: 0, width: 0};
 
     switch (timeScale) {
@@ -196,15 +198,15 @@ const GanttChart = () => {
         case "Week":
         case "Month":
         {
-            startOffset = differenceInDays(taskStartDate, interval.start);
-            duration = differenceInDays(taskEndDate, taskStartDate) + 1;
+            const startOffset = differenceInDays(taskStartDate, interval.start);
+            const duration = differenceInDays(taskEndDate, taskStartDate) + 1;
             const left = startOffset * cellWidth;
             const width = duration * cellWidth;
             return { left, width };
         }
         case "Year": {
-            startOffset = differenceInYears(taskStartDate, interval.start);
-            duration = Math.max(1, differenceInYears(taskEndDate, taskStartDate) + 1);
+            const startOffset = differenceInMonths(taskStartDate, interval.start);
+            const duration = Math.max(1, differenceInMonths(taskEndDate, taskStartDate) + 1);
             const left = startOffset * cellWidth;
             const width = duration * cellWidth;
             return { left, width };
@@ -267,6 +269,12 @@ const GanttChart = () => {
                  todayPositionX = todayOffset * cellWidth;
               }
           }
+          if (timeScale === 'Year') {
+            const todayOffset = differenceInMonths(today, interval.start);
+            if (todayOffset >= 0) {
+              todayPositionX = todayOffset * cellWidth;
+            }
+          }
       }
   }
 
@@ -303,9 +311,9 @@ const GanttChart = () => {
             <div className="flex items-center gap-2 w-40">
                 <span className="text-sm text-muted-foreground">Cell Width</span>
                 <Slider
-                    min={timeScale === 'Year' ? 400 : 10}
-                    max={timeScale === 'Year' ? 800 : (timeScale === 'Month' ? 100 : 150)}
-                    step={timeScale === 'Week' ? 5 : 10}
+                    min={timeScale === 'Year' ? 50 : 10}
+                    max={timeScale === 'Year' ? 200 : (timeScale === 'Month' ? 100 : 150)}
+                    step={10}
                     value={[cellWidth]}
                     onValueChange={(value) => setCellWidth(value[0])}
                 />
@@ -319,7 +327,7 @@ const GanttChart = () => {
           <div ref={sidebarRef} className="relative overflow-y-auto bg-card border-r border-border">
             <Table className="relative w-full" style={{tableLayout: 'fixed'}}>
               <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-sm z-10">
-                <TableRow className="h-14 hover:bg-transparent border-b">
+                <TableRow style={{height: `${ROW_HEIGHT_PX}px`}} className="hover:bg-transparent border-b">
                   <TableHead className="w-auto font-bold">Task</TableHead>
                   <TableHead className="w-[100px] font-bold">Start</TableHead>
                   <TableHead className="w-[100px] font-bold">End</TableHead>
@@ -362,7 +370,7 @@ const GanttChart = () => {
                 <div className="grid" style={{ gridTemplateColumns: getSecondaryHeaderGridTemplate() }}>
                   {secondaryHeader.map((group, i) => {
                     let isWeekend = false;
-                    if (timeScale === 'Day' || timeScale === 'Month') {
+                    if ((timeScale === 'Day' || timeScale === 'Month') && secondaryHeaderDates[i]) {
                       isWeekend = isSaturday(secondaryHeaderDates[i]) || isSunday(secondaryHeaderDates[i]);
                     }
                     return (
