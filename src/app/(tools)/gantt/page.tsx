@@ -1,6 +1,6 @@
 "use client";
 
-import { tasks as allTasks } from "@/lib/data";
+import { tasks as initialTasks } from "@/lib/data";
 import { Card } from "@/components/ui/card";
 import {
   format,
@@ -42,6 +42,7 @@ import type { Task } from "@/lib/types";
 import { ChevronRight, Diamond } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/input";
 
 
 type Node = {
@@ -58,6 +59,52 @@ const ROW_HEIGHT_PX = 56; // Corresponds to h-14 in Tailwind
 
 type HeaderGroup = { label: string; units: number };
 
+// New component for inline editing
+const EditableCell = ({ value, onSave }: { value: string, onSave: (newValue: string) => void }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [text, setText] = useState(value);
+
+  const handleDoubleClick = () => {
+    setIsEditing(true);
+  };
+
+  const handleBlur = () => {
+    setIsEditing(false);
+    onSave(text);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setText(e.target.value);
+  };
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      setIsEditing(false);
+      onSave(text);
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setText(value); // Revert changes
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <Input
+        type="text"
+        value={text}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        autoFocus
+        className="h-8 p-1 -m-1"
+      />
+    );
+  }
+
+  return <div onDoubleClick={handleDoubleClick} className="truncate cursor-pointer">{value}</div>;
+};
+
+
 const GanttChart = () => {
   const [sidebarWidth, setSidebarWidth] = useState(450);
   const [isResizing, setIsResizing] = useState(false);
@@ -66,6 +113,15 @@ const GanttChart = () => {
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
   const [cellWidth, setCellWidth] = useState(40);
   const [collapsed, setCollapsed] = useState(new Set<string>());
+  const [allTasks, setAllTasks] = useState<Task[]>(initialTasks);
+
+  const handleUpdateTask = (taskId: string, newTitle: string) => {
+    setAllTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId ? { ...task, title: newTitle } : task
+      )
+    );
+  };
 
   useEffect(() => {
     // Set the current date only on the client to avoid hydration mismatch
@@ -103,7 +159,7 @@ const GanttChart = () => {
       }
     }
     return visibleTasks;
-  }, [collapsed]);
+  }, [collapsed, allTasks]);
 
   useEffect(() => {
     // Reset cell width when time scale changes for a better default UX
@@ -411,7 +467,7 @@ const GanttChart = () => {
               <TableBody>
                 {tasks.map((task) => (
                   <TableRow key={task.id} style={{ height: `${ROW_HEIGHT_PX}px` }} className={cn("border-b border-border/50 hover:bg-muted/50", task.isCritical && "bg-accent/10 hover:bg-accent/20")}>
-                    <TableCell className="truncate">
+                    <TableCell>
                       <div className="flex items-center gap-1" style={{ paddingLeft: `${getTaskLevel(task) * 20}px` }}>
                         {taskHasChildren(task.id) ? (
                             <button onClick={() => toggleCollapse(task.id)} className="p-1 -ml-1 rounded hover:bg-accent">
@@ -420,7 +476,12 @@ const GanttChart = () => {
                         ) : (
                            task.type !== 'EPS' && <div className="w-4 h-4 mr-1"></div> // Spacer
                         )}
-                        <span className={`font-medium truncate ${task.type !== 'Activity' ? 'font-bold' : ''}`}>{task.title}</span>
+                        <span className={`font-medium ${task.type !== 'Activity' ? 'font-bold' : ''}`}>
+                          <EditableCell
+                            value={task.title}
+                            onSave={(newTitle) => handleUpdateTask(task.id, newTitle)}
+                          />
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{format(parseISO(task.startDate), 'd MMM yy')}</TableCell>
@@ -642,3 +703,5 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
+
+    
