@@ -1,3 +1,4 @@
+
 import { tasks } from "@/lib/data";
 import { Card } from "@/components/ui/card";
 import {
@@ -47,8 +48,8 @@ const GanttChart = () => {
   
   const priorityColors: { [key: string]: string } = {
     Urgent: 'bg-red-500',
-    High: 'bg-primary',
-    Medium: 'bg-yellow-500',
+    High: 'bg-orange-500',
+    Medium: 'bg-yellow-400',
     Low: 'bg-blue-500'
   };
 
@@ -157,7 +158,7 @@ const GanttChart = () => {
                 </svg>
 
                 {/* Task Bars */}
-                {tasks.map((task, index) => {
+                {tasks.map((task) => {
                   const { left, width } = getTaskPosition(task.startDate, task.endDate);
                   const progress = statusProgress[task.status] || 0;
                   return (
@@ -169,7 +170,7 @@ const GanttChart = () => {
                       >
                          <div className={`absolute inset-0 rounded-md ${priorityColors[task.priority]} opacity-80`}></div>
                          <div 
-                           className="absolute inset-y-0 left-0 bg-primary/70 rounded-md"
+                           className="absolute inset-y-0 left-0 bg-black/20 rounded-md"
                            style={{ width: `${progress}%`}}
                          ></div>
                          <span className="relative truncate text-primary-foreground font-medium z-10">{task.title}</span>
