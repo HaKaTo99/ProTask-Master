@@ -10,6 +10,17 @@ import {
   eachDayOfInterval,
   parseISO,
   isToday,
+  addMonths,
+  eachWeekOfInterval,
+  startOfWeek,
+  endOfWeek,
+  differenceInWeeks,
+  differenceInMonths,
+  eachMonthOfInterval,
+  startOfYear,
+  endOfYear,
+  differenceInYears,
+  addYears,
 } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -20,7 +31,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { Button } from "@/components/ui/button";
 
 type Node = {
   id: string;
@@ -29,18 +41,107 @@ type Node = {
   y: number;
 };
 
+type TimeScale = "Day" | "Week" | "Month" | "Year";
+
 const ROW_HEIGHT_PX = 56; // Corresponds to h-14 in Tailwind
-const DAY_WIDTH_PX = 60;
 
 const GanttChart = () => {
   const [sidebarWidth, setSidebarWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const [timeScale, setTimeScale] = useState<TimeScale>("Month");
+  const [currentDate, setCurrentDate] = useState(new Date());
 
-  const monthStart = startOfMonth(new Date());
-  const monthEnd = endOfMonth(new Date());
-  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  const totalDays = differenceInDays(monthEnd, monthStart) + 1;
+  const {
+    interval,
+    headerGroups,
+    totalUnits,
+    dayWidth,
+    timelineWidth,
+  } = useMemo(() => {
+    let interval;
+    let headerGroups: { label: string; units: number }[] = [];
+    let totalUnits = 0;
+    let dayWidth = 60;
+
+    const projectStart = new Date(Math.min(...tasks.map(t => parseISO(t.startDate).getTime())));
+    const projectEnd = new Date(Math.max(...tasks.map(t => parseISO(t.endDate).getTime())));
+
+    switch (timeScale) {
+      case "Day":
+        dayWidth = 60;
+        interval = { start: startOfWeek(projectStart), end: endOfWeek(projectEnd) };
+        totalUnits = differenceInDays(interval.end, interval.start) + 1;
+        headerGroups = eachDayOfInterval(interval).map(day => ({ label: format(day, 'E d'), units: 1 }));
+        break;
+      case "Week":
+        dayWidth = 100;
+        interval = { start: startOfWeek(projectStart), end: endOfWeek(projectEnd) };
+        totalUnits = differenceInWeeks(interval.end, interval.start) + 1;
+        headerGroups = eachWeekOfInterval(interval).map(week => ({ label: `W${format(week, 'w')}`, units: 1 }));
+        break;
+      case "Month":
+        dayWidth = 200;
+        interval = { start: startOfYear(currentDate), end: endOfYear(currentDate) };
+        totalUnits = 12;
+        headerGroups = eachMonthOfInterval(interval).map(month => ({ label: format(month, 'MMM'), units: 1 }));
+        break;
+      case "Year":
+        dayWidth = 500;
+        const startYear = startOfYear(projectStart);
+        const endYear = endOfYear(projectEnd);
+        interval = { start: startYear, end: endYear };
+        totalUnits = differenceInYears(endYear, startYear) + 1;
+        headerGroups = Array.from({ length: totalUnits }, (_, i) => ({ label: format(addYears(startYear, i), 'yyyy'), units: 1 }));
+        break;
+      default:
+        dayWidth = 60;
+        interval = { start: startOfMonth(currentDate), end: endOfMonth(currentDate) };
+        totalUnits = differenceInDays(interval.end, interval.start) + 1;
+        headerGroups = eachDayOfInterval(interval).map(day => ({ label: format(day, 'd'), units: 1 }));
+        break;
+    }
+    
+    return {
+      interval,
+      headerGroups,
+      totalUnits,
+      dayWidth,
+      timelineWidth: totalUnits * dayWidth,
+    };
+  }, [timeScale, currentDate]);
+  
+  const getTaskPosition = (taskStartDateStr: string, taskEndDateStr: string) => {
+    const taskStartDate = parseISO(taskStartDateStr);
+    const taskEndDate = parseISO(taskEndDateStr);
+
+    let startOffset = 0;
+    let duration = 0;
+
+    switch (timeScale) {
+        case "Day":
+            startOffset = differenceInDays(taskStartDate, interval.start);
+            duration = differenceInDays(taskEndDate, taskStartDate) + 1;
+            break;
+        case "Week":
+            startOffset = differenceInWeeks(taskStartDate, interval.start);
+            duration = differenceInWeeks(taskEndDate, taskStartDate) || 1;
+            break;
+        case "Month":
+            startOffset = differenceInMonths(taskStartDate, interval.start);
+            duration = differenceInMonths(taskEndDate, taskStartDate) + 1;
+            break;
+        case "Year":
+            startOffset = differenceInYears(taskStartDate, interval.start);
+            duration = differenceInYears(taskEndDate, taskStartDate) + 1;
+            break;
+    }
+    
+    const left = startOffset * dayWidth;
+    const width = duration * dayWidth;
+    return { left, width };
+};
+
 
   const startResizing = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -68,19 +169,6 @@ const GanttChart = () => {
       window.removeEventListener('mouseup', stopResizing);
     };
   }, [resize, stopResizing]);
-
-  const getTaskPosition = (taskStartDate: string, taskEndDate: string) => {
-    const startDate = parseISO(taskStartDate);
-    const endDate = parseISO(taskEndDate);
-
-    const startOffset = differenceInDays(startDate, monthStart);
-    const duration = differenceInDays(endDate, startDate) + 1;
-
-    const leftPx = Math.max(0, startOffset) * DAY_WIDTH_PX;
-    const widthPx = Math.min(duration, totalDays - startOffset) * DAY_WIDTH_PX;
-
-    return { left: leftPx, width: widthPx };
-  };
   
   const statusProgress: { [key: string]: number } = {
     'Done': 100,
@@ -89,26 +177,44 @@ const GanttChart = () => {
     'To Do': 0,
   };
 
-  const nodeMap = new Map<string, Node>(
+  const nodeMap = useMemo(() => new Map<string, Node>(
     tasks.map((task, index) => ({
       id: task.id,
       startDate: parseISO(task.startDate),
       endDate: parseISO(task.endDate),
       y: index * ROW_HEIGHT_PX + (ROW_HEIGHT_PX / 2),
     }))
-  );
+  ), [tasks]);
   
-  const todayOffset = differenceInDays(new Date(), monthStart);
-  const todayPositionX = todayOffset >= 0 && todayOffset <= totalDays ? todayOffset * DAY_WIDTH_PX : -1;
+  const todayOffset = differenceInDays(new Date(), interval.start);
+  let todayPositionX = -1;
+  if (timeScale === "Day" && todayOffset >= 0 && todayOffset < totalUnits) {
+      todayPositionX = todayOffset * dayWidth;
+  }
 
 
   return (
     <div className="p-4 md:p-8 h-full flex flex-col bg-background">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold font-headline">Gantt Chart</h1>
-        <p className="text-muted-foreground mt-1">
-          Visualisasikan linimasa proyek dengan dependensi tugas yang interaktif.
-        </p>
+      <header className="mb-6 flex justify-between items-center">
+        <div>
+            <h1 className="text-3xl font-bold font-headline">Gantt Chart</h1>
+            <p className="text-muted-foreground mt-1">
+            Visualisasikan linimasa proyek dengan dependensi tugas yang interaktif.
+            </p>
+        </div>
+        <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+            {(["Day", "Week", "Month", "Year"] as TimeScale[]).map(scale => (
+                <Button 
+                    key={scale}
+                    variant={timeScale === scale ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setTimeScale(scale)}
+                    className="h-8 px-3"
+                >
+                    {scale}
+                </Button>
+            ))}
+        </div>
       </header>
 
       <Card className="overflow-hidden flex-1 flex flex-col shadow-lg border-border">
@@ -147,13 +253,12 @@ const GanttChart = () => {
           
           {/* Timeline Column */}
           <div className="overflow-x-auto bg-card">
-            <div className="relative" style={{ minWidth: `${totalDays * DAY_WIDTH_PX}px` }}>
+            <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
-              <div className="sticky top-0 z-20 grid bg-card/95 backdrop-blur-sm" style={{ gridTemplateColumns: `repeat(${totalDays}, ${DAY_WIDTH_PX}px)` }}>
-                {daysInMonth.map((day, i) => (
-                  <div key={i} className={`h-14 flex flex-col items-center justify-center border-r border-b border-border/50 ${isToday(day) ? 'bg-primary/10' : ''}`}>
-                    <span className="text-xs text-muted-foreground">{format(day, 'E')}</span>
-                    <span className="font-semibold text-base">{format(day, 'd')}</span>
+              <div className="sticky top-0 z-20 grid bg-card/95 backdrop-blur-sm" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${dayWidth}px)` }}>
+                {headerGroups.map((group, i) => (
+                  <div key={i} className={`h-14 flex items-center justify-center border-r border-b border-border/50`}>
+                    <span className="font-semibold text-base">{group.label}</span>
                   </div>
                 ))}
               </div>
@@ -161,8 +266,8 @@ const GanttChart = () => {
               {/* Timeline Content */}
               <div className="relative" style={{ height: `${tasks.length * ROW_HEIGHT_PX}px` }}>
                  {/* Grid Lines */}
-                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${totalDays}, ${DAY_WIDTH_PX}px)` }}>
-                  {Array.from({ length: totalDays }).map((_, i) => (
+                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${dayWidth}px)` }}>
+                  {Array.from({ length: totalUnits }).map((_, i) => (
                     <div key={i} className="border-r border-border/30 h-full"></div>
                   ))}
                 </div>
@@ -174,7 +279,7 @@ const GanttChart = () => {
 
                 {/* Today Marker */}
                 {todayPositionX !== -1 && (
-                  <div className="absolute top-0 h-full w-px bg-primary z-20" style={{ left: `${todayPositionX + DAY_WIDTH_PX / 2}px` }}>
+                  <div className="absolute top-0 h-full w-px bg-primary z-20" style={{ left: `${todayPositionX + dayWidth / 2}px` }}>
                     <div className="absolute -top-1 -translate-x-1/2 left-1/2 bg-primary text-primary-foreground text-xs font-bold rounded-full px-1.5 py-0.5">
                       Today
                     </div>
