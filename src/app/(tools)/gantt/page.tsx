@@ -94,7 +94,10 @@ const GanttChart = () => {
 
     switch (timeScale) {
       case "Day": {
-        interval = { start: startOfWeek(projectStart), end: endOfWeek(projectEnd) };
+        const yearStart = startOfYear(currentDate);
+        const yearEnd = endOfYear(currentDate);
+        interval = { start: yearStart, end: yearEnd };
+
         secondaryHeaderDates = eachDayOfInterval(interval);
         totalUnits = differenceInDays(interval.end, interval.start) + 1;
         const months = eachMonthOfInterval(interval);
@@ -463,3 +466,5 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
+
+    
