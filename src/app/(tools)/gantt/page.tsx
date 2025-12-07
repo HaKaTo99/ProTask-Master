@@ -1,6 +1,6 @@
 "use client";
 
-import { tasks as initialTasks } from "@/lib/data";
+import { teamMembers as initialTeamMembers } from "@/lib/data";
 import { Card } from "@/components/ui/card";
 import {
   format,
@@ -40,11 +40,32 @@ import {
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import type { Task } from "@/lib/types";
+import type { Task, TeamMember } from "@/lib/types";
 import { ChevronRight, Diamond } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
+
+
+const initialTasks: Task[] = [
+  { id: 'eps-1', title: 'Proyek Unggulan 2025', description: 'Proyek utama untuk tahun 2025.', status: 'To Do', priority: 'Urgent', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: [], type: 'EPS' },
+  { id: 'wbs-1.1', parentId: 'eps-1', title: '1.0 Perencanaan & Desain', description: 'Fase awal untuk riset, perencanaan, dan desain arsitektur.', status: 'To Do', priority: 'High', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-02-28T00:00:00.000Z', dependencies: [], type: 'WBS' },
+  { id: 'act-1.1.1', parentId: 'wbs-1.1', title: '1.1 Riset Pasar & Analisis Kebutuhan', description: 'Menganalisis target pasar dan kebutuhan pengguna.', status: 'To Do', priority: 'High', assigneeId: 'user-3', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-01-31T00:00:00.000Z', dependencies: [], type: 'Activity' },
+  { id: 'act-1.1.2', parentId: 'wbs-1.1', title: '1.2 Desain Arsitektur Sistem', description: 'Merancang arsitektur teknis dan model data.', status: 'To Do', priority: 'High', assigneeId: 'user-5', startDate: '2025-02-01T00:00:00.000Z', endDate: '2025-02-28T00:00:00.000Z', dependencies: ['act-1.1.1'], type: 'Activity' },
+  { id: 'milestone-1.1.3', parentId: 'wbs-1.1', title: 'Persetujuan Desain Arsitektur', description: 'Persetujuan akhir untuk desain arsitektur.', status: 'To Do', priority: 'Urgent', startDate: '2025-02-28T00:00:00.000Z', endDate: '2025-02-28T00:00:00.000Z', dependencies: ['act-1.1.2'], type: 'Activity' },
+  { id: 'wbs-1.2', parentId: 'eps-1', title: '2.0 Pengembangan Inti', description: 'Pengembangan backend dan infrastruktur dasar.', status: 'To Do', priority: 'High', startDate: '2025-03-01T00:00:00.000Z', endDate: '2025-06-30T00:00:00.000Z', dependencies: ['milestone-1.1.3'], type: 'WBS' },
+  { id: 'act-1.2.1', parentId: 'wbs-1.2', title: '2.1 Pengaturan Lingkungan Pengembangan', description: 'Menyiapkan repositori, CI/CD, dan cloud environment.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-03-01T00:00:00.000Z', endDate: '2025-03-15T00:00:00.000Z', dependencies: ['milestone-1.1.3'], type: 'Activity' },
+  { id: 'act-1.2.2', parentId: 'wbs-1.2', title: '2.2 Pengembangan API Backend', description: 'Membangun endpoint API utama untuk aplikasi.', status: 'To Do', priority: 'Urgent', assigneeId: 'user-5', startDate: '2025-03-16T00:00:00.000Z', endDate: '2025-05-31T00:00:00.000Z', dependencies: ['act-1.2.1'], type: 'Activity' },
+  { id: 'act-1.2.3', parentId: 'wbs-1.2', title: '2.3 Implementasi Skema Database', description: 'Menerapkan model data ke dalam database.', status: 'To Do', priority: 'High', assigneeId: 'user-2', startDate: '2025-03-16T00:00:00.000Z', endDate: '2025-04-30T00:00:00.000Z', dependencies: ['act-1.2.1'], type: 'Activity' },
+  { id: 'wbs-1.3', parentId: 'eps-1', title: '3.0 Implementasi & Pengujian Fitur', description: 'Pengembangan frontend, integrasi, dan pengujian fitur.', status: 'To Do', priority: 'High', startDate: '2025-07-01T00:00:00.000Z', endDate: '2025-10-31T00:00:00.000Z', dependencies: ['act-1.2.2', 'act-1.2.3'], type: 'WBS' },
+  { id: 'act-1.3.1', parentId: 'wbs-1.3', title: '3.1 Pengembangan UI/UX Frontend', description: 'Membangun antarmuka pengguna sesuai dengan desain.', status: 'To Do', priority: 'High', assigneeId: 'user-1', startDate: '2025-07-01T00:00:00.000Z', endDate: '2025-08-31T00:00:00.000Z', dependencies: ['act-1.2.2'], type: 'Activity' },
+  { id: 'act-1.3.2', parentId: 'wbs-1.3', title: '3.2 Pengujian Integrasi', description: 'Menguji integrasi antara frontend dan backend.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-09-01T00:00:00.000Z', endDate: '2025-09-30T00:00:00.000Z', dependencies: ['act-1.3.1'], type: 'Activity' },
+  { id: 'act-1.3.3', parentId: 'wbs-1.3', title: '3.3 Pengujian Penerimaan Pengguna (UAT)', description: 'Melibatkan pengguna akhir untuk pengujian beta.', status: 'To Do', priority: 'Medium', assigneeId: 'user-3', startDate: '2025-10-01T00:00:00.000Z', endDate: '2025-10-31T00:00:00.000Z', dependencies: ['act-1.3.2'], type: 'Activity' },
+  { id: 'wbs-1.4', parentId: 'eps-1', title: '4.0 Peluncuran & Pasca-Peluncuran', description: 'Persiapan peluncuran, rilis, dan dukungan awal.', status: 'To Do', priority: 'Urgent', startDate: '2025-11-01T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: ['act-1.3.3'], type: 'WBS' },
+  { id: 'act-1.4.1', parentId: 'wbs-1.4', title: '4.1 Persiapan Infrastruktur Produksi', description: 'Menyiapkan server produksi dan melakukan hardening.', status: 'To Do', priority: 'Urgent', assigneeId: 'user-5', startDate: '2025-11-01T00:00:00.000Z', endDate: '2025-11-30T00:00:00.000Z', dependencies: ['act-1.3.3'], type: 'Activity' },
+  { id: 'milestone-1.4.2', parentId: 'wbs-1.4', title: 'Peluncuran Produk', description: 'Rilis resmi produk ke publik.', status: 'To Do', priority: 'Urgent', startDate: '2025-12-15T00:00:00.000Z', endDate: '2025-12-15T00:00:00.000Z', dependencies: ['act-1.4.1'], type: 'Activity' },
+  { id: 'act-1.4.3', parentId: 'wbs-1.4', title: '4.2 Dukungan Pasca-Peluncuran & Pemantauan', description: 'Memberikan dukungan dan memantau kinerja sistem.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-12-16T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: ['milestone-1.4.2'], type: 'Activity' },
+];
 
 
 type Node = {
@@ -139,10 +160,11 @@ const GanttChart = () => {
   const [cellWidth, setCellWidth] = useState(40);
   const [collapsed, setCollapsed] = useState(new Set<string>());
   const [allTasks, setAllTasks] = useState<Task[]>(initialTasks);
+  const [teamMembers] = useState<TeamMember[]>(initialTeamMembers);
   
   const [draggingInfo, setDraggingInfo] = useState<{
     task: Task;
-    action: 'move' | 'resize-end';
+    action: 'move' | 'resize-end' | 'resize-start';
     initialX: number;
     initialStartDate: Date;
     initialEndDate: Date;
@@ -191,12 +213,135 @@ const GanttChart = () => {
       return newSet;
     });
   };
+  
+  const tasksWithAssignees = useMemo(() => {
+    const memberMap = new Map(teamMembers.map(m => [m.id, m]));
+    return allTasks.map(task => ({
+      ...task,
+      assignee: task.assigneeId ? memberMap.get(task.assigneeId) : undefined
+    }));
+  }, [allTasks, teamMembers]);
+
+
+  const processedTasks = useMemo(() => {
+    const taskMap = new Map(tasksWithAssignees.map(t => [t.id, t]));
+
+    function calculateDates(taskId: string) {
+      const task = taskMap.get(taskId);
+      if (!task) return;
+
+      const parent = task.parentId ? taskMap.get(task.parentId) : null;
+      if (parent && (parent.type === 'WBS' || parent.type === 'EPS')) {
+          const children = tasksWithAssignees.filter(t => t.parentId === parent.id);
+          if (children.length > 0) {
+            const startDates = children.map(c => parseISO(c.startDate));
+            const endDates = children.map(c => parseISO(c.endDate));
+            parent.startDate = new Date(Math.min(...startDates.map(d => d.getTime()))).toISOString();
+            parent.endDate = new Date(Math.max(...endDates.map(d => d.getTime()))).toISOString();
+            
+            // Recalculate parent's parent
+            if (parent.parentId) {
+              calculateDates(parent.parentId);
+            }
+          }
+      }
+    }
+    
+    tasksWithAssignees.forEach(task => {
+        if (task.type === 'Activity') {
+            calculateDates(task.id);
+        }
+    });
+
+    function calculateCriticalPath(tasks: Task[]): Task[] {
+        const taskMap = new Map(tasks.map(task => [task.id, { ...task }]));
+        const taskCalculations = new Map<string, { es: number; ef: number; ls: number; lf: number; slack: number; duration: number }>();
+        const validTasks = tasks.filter(t => isValid(parseISO(t.startDate)) && isValid(parseISO(t.endDate)));
+
+        if (validTasks.length === 0) return tasks;
+
+        validTasks.forEach(task => {
+            const duration = differenceInDays(parseISO(task.endDate), parseISO(task.startDate)) || 1;
+            taskCalculations.set(task.id, { es: 0, ef: 0, ls: Infinity, lf: Infinity, slack: 0, duration });
+        });
+
+        const projectStartDate = new Date(Math.min(...validTasks.map(t => parseISO(t.startDate).getTime())));
+        
+        validTasks.forEach(task => {
+            const calc = taskCalculations.get(task.id)!;
+            if (task.dependencies.length === 0) {
+                calc.es = differenceInDays(parseISO(task.startDate), projectStartDate);
+            } else {
+                const maxEF = Math.max(...task.dependencies.map(depId => taskCalculations.get(depId)?.ef || 0));
+                calc.es = maxEF;
+            }
+            calc.ef = calc.es + calc.duration;
+        });
+
+        const projectEndDateVal = Math.max(...Array.from(taskCalculations.values()).map(c => c.ef));
+        
+        const reversedTasks = [...validTasks].reverse();
+        reversedTasks.forEach(task => {
+            const calc = taskCalculations.get(task.id)!;
+            const successors = validTasks.filter(t => t.dependencies.includes(task.id));
+
+            if (successors.length === 0) {
+                calc.lf = projectEndDateVal;
+            } else {
+                const minLS = Math.min(...successors.map(s => taskCalculations.get(s.id)?.ls || Infinity));
+                calc.lf = minLS;
+            }
+            calc.ls = calc.lf - calc.duration;
+            calc.slack = calc.ls - calc.es;
+        });
+        
+        const criticalPathTasks = new Set<string>();
+        taskCalculations.forEach((calc, taskId) => {
+            if (calc.slack <= 1) { // Allow for small rounding errors
+                criticalPathTasks.add(taskId);
+            }
+        });
+
+        return tasks.map(task => ({
+            ...task,
+            isCritical: criticalPathTasks.has(task.id),
+        }));
+    }
+    
+    const tasksWithCriticalPath = calculateCriticalPath(Array.from(taskMap.values()));
+
+    const sortedTasks: Task[] = [];
+    const visited = new Set<string>();
+    const finalTaskMap = new Map(tasksWithCriticalPath.map(task => [task.id, task]));
+
+    function visit(taskId: string) {
+        if (visited.has(taskId) || !finalTaskMap.has(taskId)) return;
+        visited.add(taskId);
+        
+        const task = finalTaskMap.get(taskId);
+        if (!task) return;
+
+        sortedTasks.push(task);
+
+        const children = tasksWithCriticalPath
+          .filter(t => t.parentId === taskId)
+          .sort((a, b) => a.id.localeCompare(b.id));
+
+        children.forEach(child => visit(child.id));
+    }
+
+    const rootNodes = tasksWithCriticalPath.filter(task => !task.parentId).sort((a,b) => a.id.localeCompare(b.id));
+    rootNodes.forEach(root => visit(root.id));
+
+    return sortedTasks;
+  }, [tasksWithAssignees]);
+
 
   const tasks = useMemo(() => {
     const visibleTasks: Task[] = [];
-    const taskMap = new Map(allTasks.map(t => [t.id, t]));
+    const taskMap = new Map(processedTasks.map(t => [t.id, t]));
 
-    for (const task of allTasks) {
+    for (const task of processedTasks) {
       let parent = task.parentId ? taskMap.get(task.parentId) : null;
       let isVisible = true;
       while (parent) {
@@ -211,7 +356,8 @@ const GanttChart = () => {
       }
     }
     return visibleTasks;
-  }, [collapsed, allTasks]);
+  }, [collapsed, processedTasks]);
+
 
   useEffect(() => {
     // Reset cell width when time scale changes for a better default UX
@@ -223,7 +369,7 @@ const GanttChart = () => {
         setCellWidth(20);
         break;
       case "Month":
-        setCellWidth(10);
+        setCellWidth(40);
         break;
       case "Year":
         setCellWidth(100);
@@ -256,7 +402,7 @@ const GanttChart = () => {
         interval = { start: yearStart, end: yearEnd };
 
         secondaryHeaderDates = eachDayOfInterval(interval);
-        totalUnits = differenceInDays(interval.end, interval.start) + 1;
+        totalUnits = secondaryHeaderDates.length;
         const months = eachMonthOfInterval(interval);
         primaryHeader = months.map(monthStart => {
           const monthEnd = endOfMonth(monthStart);
@@ -303,7 +449,8 @@ const GanttChart = () => {
         secondaryHeaderDates = eachDayOfInterval(interval);
         totalUnits = secondaryHeaderDates.length;
         
-        primaryHeader = eachYearOfInterval(interval).map(yearStart => ({
+        const yearsInInterval = eachYearOfInterval(interval);
+        primaryHeader = yearsInInterval.map(yearStart => ({
             label: format(yearStart, 'yyyy'),
             units: differenceInDays(endOfYear(yearStart), yearStart) + 1
         }));
@@ -335,14 +482,7 @@ const GanttChart = () => {
       }
     }
 
-    let finalTimelineWidth = 0;
-     if (timeScale === 'Year') {
-      finalTimelineWidth = totalUnits * cellWidth;
-    } else if (timeScale === 'Week') {
-        finalTimelineWidth = secondaryHeader.reduce((acc, h) => acc + h.units * cellWidth, 0);
-    } else {
-      finalTimelineWidth = totalUnits * cellWidth;
-    }
+    const finalTimelineWidth = secondaryHeader.reduce((acc, h) => acc + (h.units * cellWidth), 0);
 
     return {
       interval,
@@ -359,24 +499,23 @@ const GanttChart = () => {
     const taskStartDate = parseISO(taskStartDateStr);
     const taskEndDate = parseISO(taskEndDateStr);
     
-    if (!isValid(taskStartDate) || !isValid(taskEndDate)) return { left: 0, width: 0};
-
-
-    if (!interval.start || !interval.end) return { left: 0, width: 0};
+    if (!isValid(taskStartDate) || !isValid(taskEndDate) || !interval.start || !interval.end) {
+      return { left: 0, width: 0};
+    }
 
     switch (timeScale) {
         case "Day":
         case "Week":
         case "Month":
         {
-            const startOffset = differenceInDays(taskStartDate, interval.start);
-            const duration = differenceInDays(taskEndDate, taskStartDate) + 1;
+            const startOffset = Math.max(0, differenceInDays(taskStartDate, interval.start));
+            const duration = Math.max(1, differenceInDays(taskEndDate, taskStartDate) + 1);
             const left = startOffset * cellWidth;
             const width = duration * cellWidth;
             return { left, width };
         }
         case "Year": {
-            const startOffset = differenceInMonths(taskStartDate, interval.start);
+            const startOffset = Math.max(0, differenceInMonths(taskStartDate, interval.start));
             const duration = Math.max(1, differenceInMonths(taskEndDate, taskStartDate) + 1);
             const left = startOffset * cellWidth;
             const width = duration * cellWidth;
@@ -414,7 +553,7 @@ const GanttChart = () => {
     };
   }, [resize, stopResizing]);
   
-  const handleDragStart = (e: React.MouseEvent, task: Task, action: 'move' | 'resize-end') => {
+  const handleDragStart = (e: React.MouseEvent, task: Task, action: 'move' | 'resize-end' | 'resize-start') => {
     if (task.type !== 'Activity' || task.startDate === task.endDate) return;
     e.preventDefault();
     e.stopPropagation();
@@ -432,28 +571,38 @@ const GanttChart = () => {
     if (!draggingInfo) return;
 
     const dx = e.clientX - draggingInfo.initialX;
-    let daysMoved = 0;
+    let unitsMoved = 0;
     
-    if (timeScale === 'Year') {
-      const monthsMoved = Math.round(dx / cellWidth);
-      daysMoved = monthsMoved * 30; // Approximation
-    } else {
-      daysMoved = Math.round(dx / cellWidth);
-    }
+    unitsMoved = Math.round(dx / cellWidth);
     
     let newStartDate = draggingInfo.initialStartDate;
     let newEndDate = draggingInfo.initialEndDate;
+    let duration = differenceInDays(draggingInfo.initialEndDate, draggingInfo.initialStartDate);
 
-    if (draggingInfo.action === 'move') {
-      const duration = differenceInDays(draggingInfo.initialEndDate, draggingInfo.initialStartDate);
-      newStartDate = addDays(draggingInfo.initialStartDate, daysMoved);
-      newEndDate = addDays(newStartDate, duration);
-    } else if (draggingInfo.action === 'resize-end') {
-      newEndDate = addDays(draggingInfo.initialEndDate, daysMoved);
-      if (differenceInDays(newEndDate, newStartDate) < 0) {
-        newEndDate = newStartDate;
+    if (timeScale === 'Year') {
+      if (draggingInfo.action === 'move') {
+          newStartDate = addMonths(draggingInfo.initialStartDate, unitsMoved);
+          newEndDate = addMonths(draggingInfo.initialEndDate, unitsMoved);
+      } else if (draggingInfo.action === 'resize-end') {
+          newEndDate = addMonths(draggingInfo.initialEndDate, unitsMoved);
+          if (newEndDate < newStartDate) newEndDate = newStartDate;
+      } else if (draggingInfo.action === 'resize-start') {
+          newStartDate = addMonths(draggingInfo.initialStartDate, unitsMoved);
+          if (newStartDate > newEndDate) newStartDate = newEndDate;
       }
+    } else {
+        if (draggingInfo.action === 'move') {
+            newStartDate = addDays(draggingInfo.initialStartDate, unitsMoved);
+            newEndDate = addDays(newStartDate, duration);
+        } else if (draggingInfo.action === 'resize-end') {
+            newEndDate = addDays(draggingInfo.initialEndDate, unitsMoved);
+            if (newEndDate < newStartDate) newEndDate = newStartDate;
+        } else if (draggingInfo.action === 'resize-start') {
+            newStartDate = addDays(draggingInfo.initialStartDate, unitsMoved);
+            if (newStartDate > newEndDate) newStartDate = newEndDate;
+        }
     }
+
 
     setAllTasks(prevTasks => prevTasks.map(t => {
       if (t.id === draggingInfo.task.id) {
@@ -525,18 +674,16 @@ const GanttChart = () => {
       }
   }
 
- const getGridTemplate = (headerGroups: HeaderGroup[], forTimeScale: TimeScale) => {
-    if (forTimeScale === 'Week') {
-        return headerGroups.map(g => `${g.units * cellWidth}px`).join(' ');
-    }
+ const getGridTemplate = (headerGroups: HeaderGroup[], cellWidth: number) => {
     return headerGroups.map(g => `${g.units * cellWidth}px`).join(' ');
   }
 
 
   const getTaskLevel = (task: Task) => {
-    if (task.type === 'WBS') return 1;
-    if (task.type === 'Activity') return 2;
-    return 0;
+    if (!task.parentId) return 0;
+    const parent = processedTasks.find(t => t.id === task.parentId);
+    if (!parent) return 1;
+    return getTaskLevel(parent) + 1;
   };
   
   const taskHasChildren = (taskId: string) => {
@@ -577,8 +724,8 @@ const GanttChart = () => {
             <div className="flex items-center gap-2 w-40">
                 <span className="text-sm text-muted-foreground">Cell Width</span>
                 <Slider
-                    min={timeScale === 'Year' ? 50 : (timeScale === 'Week' || timeScale === 'Month' ? 10 : 20)}
-                    max={timeScale === 'Year' ? 200 : (timeScale === 'Month' ? 40 : 80)}
+                    min={timeScale === 'Year' ? 50 : (timeScale === 'Week' ? 10 : 20)}
+                    max={timeScale === 'Year' ? 200 : (timeScale === 'Month' ? 80 : 80)}
                     step={5}
                     value={[cellWidth]}
                     onValueChange={(value) => setCellWidth(value[0])}
@@ -605,7 +752,7 @@ const GanttChart = () => {
                 {tasks.map((task) => (
                   <TableRow key={task.id} style={{ height: `${ROW_HEIGHT_PX}px` }} className={cn("border-b border-border/50 hover:bg-muted/50", task.isCritical && "bg-accent/10 hover:bg-accent/20")}>
                     <TableCell>
-                      <div className="flex items-center gap-1" style={{ paddingLeft: `${getTaskLevel(task) * 20}px` }}>
+                      <div className="flex items-center gap-1" style={{ paddingLeft: `${getTaskLevel(task) * 16}px` }}>
                         {taskHasChildren(task.id) ? (
                             <button onClick={() => toggleCollapse(task.id)} className="p-1 -ml-1 rounded hover:bg-accent">
                                 <ChevronRight className={cn("h-4 w-4 transition-transform", !collapsed.has(task.id) && "rotate-90")} />
@@ -655,28 +802,30 @@ const GanttChart = () => {
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
               <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm">
-                <div className="grid border-b border-border/50" style={{ gridTemplateColumns: getGridTemplate(primaryHeader, timeScale) }}>
+                <div className="grid border-b border-border/50" style={{ gridTemplateColumns: getGridTemplate(primaryHeader, cellWidth) }}>
                   {primaryHeader.map((group, i) => (
                     <div key={i} className="h-7 flex items-center justify-center border-r border-border/50">
                       <span className="font-semibold text-sm">{group.label}</span>
                     </div>
                   ))}
                 </div>
-                 <div className="grid" style={{ gridTemplateColumns: getGridTemplate(secondaryHeader, timeScale === 'Week' ? 'Day' : timeScale) }}>
-                  {(timeScale === 'Week' ? secondaryHeaderDates : secondaryHeader).map((group, i) => {
-                     let isDayScale = timeScale === 'Day' || timeScale === 'Week' || timeScale === 'Month';
+                 <div className="grid" style={{ gridTemplateColumns: getGridTemplate(secondaryHeader, cellWidth) }}>
+                  {secondaryHeader.map((group, i) => {
                      let isWeekend = false;
-                     if(isDayScale && secondaryHeaderDates[i]) {
+                     if((timeScale === 'Day' || timeScale === 'Week') && secondaryHeaderDates[i]) {
                          const day = secondaryHeaderDates[i];
                          isWeekend = isSaturday(day) || isSunday(day);
+                     } else if (timeScale === 'Month') {
+                        const day = secondaryHeaderDates[i];
+                        if (day) isWeekend = isSaturday(day) || isSunday(day);
                      }
-                    const label = timeScale === 'Week' ? format(secondaryHeaderDates[i], 'd') : group.label;
+                    
                     return (
                       <div key={i} className={cn(
                         "h-7 flex items-center justify-center border-r border-b border-border/50",
                          isWeekend && 'bg-muted/60'
                       )}>
-                        <span className="font-medium text-xs">{label}</span>
+                        <span className="font-medium text-xs">{group.label}</span>
                       </div>
                     )
                   })}
@@ -686,10 +835,10 @@ const GanttChart = () => {
               {/* Timeline Content */}
               <div className="relative" style={{ height: `${tasks.length * ROW_HEIGHT_PX}px` }}>
                  {/* Grid Lines */}
-                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: timeScale === 'Year' ? getGridTemplate(secondaryHeader, 'Year') : `repeat(${totalUnits}, ${cellWidth}px)` }}>
-                  { (timeScale === 'Year' ? secondaryHeader : secondaryHeaderDates).map((_, i) => {
+                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: getGridTemplate(secondaryHeader, cellWidth) }}>
+                  { secondaryHeader.map((_, i) => {
                      let isWeekend = false;
-                      if ((timeScale === 'Day' || timeScale === 'Month' || timeScale === 'Week') && secondaryHeaderDates[i]) {
+                      if ((timeScale === 'Day' || timeScale === 'Week' || timeScale === 'Month') && secondaryHeaderDates[i]) {
                         const day = secondaryHeaderDates[i];
                         if (day) {
                           isWeekend = isSaturday(day) || isSunday(day);
@@ -809,7 +958,7 @@ const GanttChart = () => {
                            <div
                               onMouseDown={(e) => isDraggable && handleDragStart(e, task, 'move')}
                               className={cn(
-                                "relative h-full w-full flex items-center rounded-sm text-primary-foreground overflow-hidden shadow-sm",
+                                "relative h-full w-full flex items-center rounded-sm text-primary-foreground overflow-hidden shadow-sm z-10",
                                 isDraggable && "cursor-grab",
                                 draggingInfo?.task.id === task.id && "cursor-grabbing ring-2 ring-primary ring-offset-2 z-20",
                               )}
@@ -829,8 +978,12 @@ const GanttChart = () => {
                               {isDraggable && (
                                 <>
                                   <div 
+                                    onMouseDown={(e) => handleDragStart(e, task, 'resize-start')}
+                                    className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize z-20"
+                                  />
+                                  <div 
                                     onMouseDown={(e) => handleDragStart(e, task, 'resize-end')}
-                                    className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-10"
+                                    className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-20"
                                   />
                                 </>
                               )}
@@ -857,6 +1010,15 @@ const GanttChart = () => {
                            <p className="text-muted-foreground">{`${format(parseISO(task.startDate), 'd MMM')} - ${format(parseISO(task.endDate), 'd MMM yyyy')}`}</p>
                         </TooltipContent>
                       </Tooltip>
+                      
+                       {/* Dependency handles */}
+                      {isDraggable && (
+                        <>
+                          <div className="absolute left-[-6px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-background cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity z-20" />
+                          <div className="absolute right-[-6px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-background cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity z-20" />
+                        </>
+                      )}
+
                     </div>
                   );
                 })}

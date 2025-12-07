@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { tasks } from "@/lib/data";
+import { tasks as initialTasks, teamMembers } from "@/lib/data-gantt";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,10 +11,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 export default function SchedulerPage() {
   const [date, setDate] = React.useState<Date | undefined>(new Date());
 
-  const taskDates = tasks.map(task => parseISO(task.startDate));
+  const tasksWithAssignees = initialTasks.map(task => {
+    const assignee = teamMembers.find(member => member.id === task.assigneeId);
+    return { ...task, assignee };
+  });
+
+  const taskDates = tasksWithAssignees.map(task => parseISO(task.startDate));
 
   const selectedDayTasks = date
-    ? tasks.filter(task => isSameDay(parseISO(task.startDate), date) || isSameDay(parseISO(task.endDate), date))
+    ? tasksWithAssignees.filter(task => isSameDay(parseISO(task.startDate), date) || isSameDay(parseISO(task.endDate), date))
     : [];
     
   const priorityColors = {

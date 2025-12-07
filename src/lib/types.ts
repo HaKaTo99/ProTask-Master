@@ -15,6 +15,7 @@ export type Task = {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
+  assigneeId?: string;
   assignee?: TeamMember;
   startDate: string; // ISO string
   endDate: string;   // ISO string

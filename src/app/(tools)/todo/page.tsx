@@ -1,4 +1,4 @@
-import { tasks } from "@/lib/data";
+import { tasks as initialTasks, teamMembers } from "@/lib/data-gantt";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -11,7 +11,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
+import { Task } from "@/lib/types";
 
 export default function TodoPage() {
     
@@ -28,6 +29,11 @@ export default function TodoPage() {
     Medium: "text-yellow-600",
     Low: "text-blue-500",
   };
+  
+  const tasksWithAssignees = initialTasks.map(task => {
+    const assignee = teamMembers.find(member => member.id === task.assigneeId);
+    return { ...task, assignee };
+  });
 
   return (
     <div className="p-4 md:p-8">
@@ -51,7 +57,7 @@ export default function TodoPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tasks.map((task) => (
+              {tasksWithAssignees.map((task) => (
                 <TableRow key={task.id}>
                   <TableCell>
                     <Checkbox checked={task.status === "Done"} />
@@ -66,7 +72,7 @@ export default function TodoPage() {
                   <TableCell>
                     <Badge variant="outline" className={priorityColors[task.priority]}>{task.priority}</Badge>
                   </TableCell>
-                  <TableCell>{format(new Date(task.endDate), "MMM dd, yyyy")}</TableCell>
+                  <TableCell>{format(parseISO(task.endDate), "MMM dd, yyyy")}</TableCell>
                   <TableCell>
                     {task.assignee ? (
                       <div className="flex items-center gap-2">

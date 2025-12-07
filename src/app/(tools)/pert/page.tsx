@@ -1,6 +1,4 @@
-import { tasks } from '@/lib/data';
 import { Card } from '@/components/ui/card';
-import { ArrowRight } from 'lucide-react';
 
 type Node = {
   id: string;
@@ -12,14 +10,15 @@ type Node = {
 
 // Pre-calculate positions for a static layout
 const nodes: Node[] = [
-  { id: 'task-2', title: 'Setup Project', x: 5, y: 30, dependencies: [] },
-  { id: 'task-1', title: 'Design Mockups', x: 5, y: 70, dependencies: [] },
-  { id: 'task-5', title: 'Implement AI API', x: 25, y: 10, dependencies: ['task-2'] },
-  { id: 'task-7', title: 'Setup Testing', x: 25, y: 50, dependencies: ['task-2'] },
-  { id: 'task-3', title: 'Auth Flow', x: 45, y: 30, dependencies: ['task-1', 'task-2'] },
-  { id: 'task-4', title: 'Kanban Component', x: 45, y: 70, dependencies: ['task-1'] },
-  { id: 'task-6', title: 'Gantt Chart', x: 65, y: 70, dependencies: ['task-1'] },
-  { id: 'task-8', title: 'Deploy', x: 85, y: 50, dependencies: ['task-3', 'task-4', 'task-5', 'task-6'] },
+  { id: 'act-1.1.1', title: 'Riset Pasar', x: 5, y: 50, dependencies: [] },
+  { id: 'act-1.1.2', title: 'Desain Arsitektur', x: 25, y: 50, dependencies: ['act-1.1.1'] },
+  { id: 'milestone-1.1.3', title: 'Persetujuan Desain', x: 40, y: 50, dependencies: ['act-1.1.2'] },
+  { id: 'act-1.2.1', title: 'Setup Lingkungan Dev', x: 55, y: 30, dependencies: ['milestone-1.1.3'] },
+  { id: 'act-1.2.3', title: 'Implementasi DB', x: 70, y: 15, dependencies: ['act-1.2.1'] },
+  { id: 'act-1.2.2', title: 'Pengembangan API', x: 70, y: 45, dependencies: ['act-1.2.1'] },
+  { id: 'act-1.3.1', title: 'Pengembangan UI/UX', x: 85, y: 45, dependencies: ['act-1.2.2'] },
+  { id: 'act-1.3.2', title: 'Pengujian Integrasi', x: 85, y: 65, dependencies: ['act-1.3.1'] },
+  { id: 'act-1.3.3', title: 'UAT', x: 95, y: 50, dependencies: ['act-1.3.2', 'act-1.2.3'] },
 ];
 
 const NodeComponent = ({ node }: { node: Node }) => (
@@ -27,7 +26,7 @@ const NodeComponent = ({ node }: { node: Node }) => (
     className="absolute transform -translate-x-1/2 -translate-y-1/2"
     style={{ left: `${node.x}%`, top: `${node.y}%` }}
   >
-    <Card className="w-40 shadow-lg bg-card hover:shadow-xl transition-shadow">
+    <Card className="w-36 shadow-lg bg-card hover:shadow-xl transition-shadow">
       <div className="p-3 text-center">
         <p className="text-sm font-semibold truncate">{node.title}</p>
         <p className="text-xs text-muted-foreground">{node.id}</p>
@@ -36,25 +35,19 @@ const NodeComponent = ({ node }: { node: Node }) => (
   </div>
 );
 
-const EdgeComponent = ({ from, to }: { from: Node; to: Node }) => {
-  const isCritical = ['task-2','task-3', 'task-8'].includes(from.id) && ['task-3', 'task-8'].includes(to.id);
-  const strokeColor = isCritical ? 'hsl(var(--accent))' : 'hsl(var(--border))';
-
-  return (
-    <line
-      x1={`${from.x}%`}
-      y1={`${from.y}%`}
-      x2={`${to.x}%`}
-      y2={`${to.y}%`}
-      stroke={strokeColor}
-      strokeWidth="2"
-      markerEnd="url(#arrowhead)"
-    />
-  );
-};
-
 export default function PertPage() {
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+  // Manually define the critical path for visualization
+  const criticalPathEdges = new Set([
+    'act-1.1.1-act-1.1.2',
+    'act-1.1.2-milestone-1.1.3',
+    'milestone-1.1.3-act-1.2.1',
+    'act-1.2.1-act-1.2.2',
+    'act-1.2.2-act-1.3.1',
+    'act-1.3.1-act-1.3.2',
+    'act-1.3.2-act-1.3.3',
+  ]);
 
   return (
     <div className="p-4 md:p-8">
@@ -63,7 +56,7 @@ export default function PertPage() {
         Visualize task dependencies and the critical path of your project.
       </p>
       <Card className="w-full h-[70vh] relative overflow-auto">
-        <svg width="100%" height="100%" className="min-w-[800px] min-h-[500px]">
+        <svg width="100%" height="100%" className="min-w-[1200px] min-h-[500px]">
           <defs>
             <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto">
               <polygon points="0 0, 10 3.5, 0 7" fill="hsl(var(--border))" />
@@ -76,10 +69,12 @@ export default function PertPage() {
             node.dependencies.map(depId => {
               const fromNode = nodeMap.get(depId);
               if (!fromNode) return null;
-              const isCritical = ['task-2','task-3', 'task-8'].includes(fromNode.id) && ['task-3', 'task-8'].includes(node.id);
+              const edgeId = `${depId}-${node.id}`;
+              const isCritical = criticalPathEdges.has(edgeId);
+              
               return (
                  <line
-                  key={`${depId}-${node.id}`}
+                  key={edgeId}
                   x1={`${fromNode.x}%`}
                   y1={`${fromNode.y}%`}
                   x2={`${node.x}%`}
