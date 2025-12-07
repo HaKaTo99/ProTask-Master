@@ -114,7 +114,7 @@ const GanttChart = () => {
         setCellWidth(20);
         break;
       case "Month":
-        setCellWidth(30);
+        setCellWidth(10);
         break;
       case "Year":
         setCellWidth(100);
@@ -171,34 +171,19 @@ const GanttChart = () => {
 
         const monthsInInterval = eachMonthOfInterval({ start: interval.start, end: interval.end });
         primaryHeader = monthsInInterval.map(monthStart => {
-          const monthEnd = endOfMonth(monthStart);
-          const daysInMonth = differenceInDays(monthEnd, monthStart) + 1;
-          return { label: format(monthStart, 'MMMM yyyy'), units: daysInMonth };
+            const start = new Date(Math.max(interval.start.getTime(), monthStart.getTime()));
+            const end = new Date(Math.min(interval.end.getTime(), endOfMonth(monthStart).getTime()));
+            const daysInMonth = differenceInDays(end, start) + 1;
+            return { label: format(monthStart, 'MMMM yyyy'), units: daysInMonth };
         });
         
         const weeksInInterval = eachWeekOfInterval(interval, { weekStartsOn: 1 });
-        let weekHeaders: HeaderGroup[] = [];
-        weeksInInterval.forEach(weekStart => {
-            const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
-            const daysInWeek = 7;
-            weekHeaders.push({ label: `W${getISOWeek(weekStart)}`, units: daysInWeek });
+        secondaryHeader = weeksInInterval.map(weekStart => {
+            const start = new Date(Math.max(interval.start.getTime(), weekStart.getTime()));
+            const end = new Date(Math.min(interval.end.getTime(), endOfWeek(weekStart, { weekStartsOn: 1 }).getTime()));
+            const daysInWeek = differenceInDays(end, start) + 1;
+            return { label: `W${getISOWeek(weekStart)}`, units: daysInWeek };
         });
-
-        // Adjust for partial weeks at start/end of year
-        const firstDayOfYear = startOfYear(currentDate);
-        const firstWeekDay = getDay(firstDayOfYear) === 0 ? 6 : getDay(firstDayOfYear) - 1; // Mon=0, Sun=6
-        if(firstWeekDay > 0) {
-            weekHeaders[0].units = 7 - firstWeekDay;
-        }
-
-        const lastDayOfYear = endOfYear(currentDate);
-        const lastWeekDay = getDay(lastDayOfYear) === 0 ? 6 : getDay(lastDayOfYear) - 1;
-        if(lastWeekDay < 6) {
-            weekHeaders[weekHeaders.length - 1].units = lastWeekDay + 1;
-        }
-
-        secondaryHeader = weekHeaders;
-
         break;
       }
       case "Month": {
@@ -209,15 +194,15 @@ const GanttChart = () => {
         secondaryHeaderDates = eachDayOfInterval(interval);
         totalUnits = secondaryHeaderDates.length;
         
-        primaryHeader = eachMonthOfInterval(interval).map(monthStart => ({
-          label: format(monthStart, 'MMMM yyyy'),
-          units: differenceInDays(endOfMonth(monthStart), monthStart) + 1
+        primaryHeader = eachYearOfInterval(interval).map(yearStart => ({
+            label: format(yearStart, 'yyyy'),
+            units: differenceInDays(endOfYear(yearStart), yearStart) + 1
         }));
-
-        secondaryHeader = secondaryHeaderDates.map(day => ({ 
-            label: format(day, 'd'), 
-            units: 1
-        }));
+        
+        secondaryHeader = eachMonthOfInterval(interval).map(monthStart => {
+            const daysInMonth = differenceInDays(endOfMonth(monthStart), monthStart) + 1;
+            return { label: format(monthStart, 'MMM'), units: daysInMonth };
+        });
         break;
       }
       case "Year": {
@@ -242,10 +227,10 @@ const GanttChart = () => {
     }
 
     let finalTimelineWidth = 0;
-     if (timeScale === 'Week') {
-      finalTimelineWidth = secondaryHeader.reduce((acc, h) => acc + h.units * cellWidth, 0);
-    } else {
+     if (timeScale === 'Year') {
       finalTimelineWidth = totalUnits * cellWidth;
+    } else {
+      finalTimelineWidth = secondaryHeader.reduce((acc, h) => acc + h.units * cellWidth, 0);
     }
 
     return {
@@ -397,8 +382,8 @@ const GanttChart = () => {
             <div className="flex items-center gap-2 w-40">
                 <span className="text-sm text-muted-foreground">Cell Width</span>
                 <Slider
-                    min={timeScale === 'Year' ? 50 : (timeScale === 'Week' ? 10 : 20)}
-                    max={timeScale === 'Year' ? 200 : (timeScale === 'Month' ? 60 : 80)}
+                    min={timeScale === 'Year' ? 50 : (timeScale === 'Week' || timeScale === 'Month' ? 10 : 20)}
+                    max={timeScale === 'Year' ? 200 : (timeScale === 'Month' ? 40 : 80)}
                     step={5}
                     value={[cellWidth]}
                     onValueChange={(value) => setCellWidth(value[0])}
@@ -467,14 +452,12 @@ const GanttChart = () => {
                 </div>
                 <div className="grid" style={{ gridTemplateColumns: getGridTemplate(secondaryHeader) }}>
                   {secondaryHeader.map((group, i) => {
-                    let isWeekend = false;
-                    const isWeekly = timeScale === 'Week';
-                    // The secondary header for weekly is not day-based, so weekend logic won't apply here.
-                    // The shading is handled in the grid lines below which are always day-based for Week view.
-                    if (!isWeekly && secondaryHeaderDates[i]) {
-                      const currentDateHeader = secondaryHeaderDates[i];
-                      isWeekend = isSaturday(currentDateHeader) || isSunday(currentDateHeader);
-                    }
+                     let isDayScale = timeScale === 'Day';
+                     let isWeekend = false;
+                     if(isDayScale && secondaryHeaderDates[i]) {
+                         const day = secondaryHeaderDates[i];
+                         isWeekend = isSaturday(day) || isSunday(day);
+                     }
                     return (
                       <div key={i} className={cn(
                         "h-7 flex items-center justify-center border-r border-b border-border/50",
