@@ -19,6 +19,7 @@ import {
   differenceInMonths,
   eachMonthOfInterval,
   differenceInYears,
+  addDays,
 } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -43,6 +44,8 @@ type Node = {
 type TimeScale = "Day" | "Week" | "Month" | "Year";
 
 const ROW_HEIGHT_PX = 56; // Corresponds to h-14 in Tailwind
+
+type HeaderGroup = { label: string; units: number };
 
 const GanttChart = () => {
   const [sidebarWidth, setSidebarWidth] = useState(400);
@@ -71,51 +74,72 @@ const GanttChart = () => {
 
   const {
     interval,
-    headerGroups,
+    primaryHeader,
+    secondaryHeader,
     totalUnits,
     timelineWidth,
   } = useMemo(() => {
     let interval;
-    let headerGroups: { label: string; units: number }[] = [];
+    let primaryHeader: HeaderGroup[] = [];
+    let secondaryHeader: HeaderGroup[] = [];
     let totalUnits = 0;
 
     const projectStart = new Date(Math.min(...tasks.map(t => parseISO(t.startDate).getTime())));
     const projectEnd = new Date(Math.max(...tasks.map(t => parseISO(t.endDate).getTime())));
 
     switch (timeScale) {
-      case "Day":
+      case "Day": {
         interval = { start: startOfWeek(projectStart), end: endOfWeek(projectEnd) };
         totalUnits = differenceInDays(interval.end, interval.start) + 1;
-        const monthsInDayView = eachMonthOfInterval(interval);
-        headerGroups = monthsInDayView.map(monthStart => {
+        const months = eachMonthOfInterval(interval);
+        primaryHeader = months.map(monthStart => {
           const monthEnd = endOfMonth(monthStart);
           const end = interval.end < monthEnd ? interval.end : monthEnd;
           const daysInMonth = differenceInDays(end, monthStart) + 1;
           return { label: format(monthStart, 'MMMM yyyy'), units: daysInMonth };
         });
+        secondaryHeader = eachDayOfInterval(interval).map(day => ({
+          label: format(day, 'd'),
+          units: 1
+        }));
         break;
-      case "Week":
+      }
+      case "Week": {
         interval = { start: startOfWeek(projectStart), end: endOfWeek(projectEnd) };
-        totalUnits = differenceInWeeks(interval.end, interval.start) + 1;
-        headerGroups = eachWeekOfInterval(interval).map(week => ({ label: `W${format(week, 'w')}`, units: 1 }));
+        totalUnits = differenceInWeeks(interval.end, interval.start, { weekStartsOn: 1 }) + 1;
+        const months = eachMonthOfInterval(interval);
+        primaryHeader = months.map(monthStart => {
+            const startOfNextMonth = startOfMonth(addDays(monthStart, 32));
+            let weeksInMonth = differenceInWeeks(startOfNextMonth, monthStart, { weekStartsOn: 1 });
+            return { label: format(monthStart, 'MMMM yyyy'), units: weeksInMonth };
+        });
+        secondaryHeader = eachWeekOfInterval(interval, { weekStartsOn: 1 }).map(week => ({ 
+            label: `W${format(week, 'w')}`, units: 1 
+        }));
         break;
-      case "Month":
+      }
+      case "Month": {
         interval = { start: startOfYear(currentDate), end: endOfYear(currentDate) };
         totalUnits = 12;
-        headerGroups = eachMonthOfInterval(interval).map(month => ({ label: format(month, 'MMM'), units: 1 }));
+        primaryHeader = [{ label: format(currentDate, 'yyyy'), units: 12 }];
+        secondaryHeader = eachMonthOfInterval(interval).map(month => ({ label: format(month, 'MMM'), units: 1 }));
         break;
-      case "Year":
+      }
+      case "Year": {
         const startYear = startOfYear(projectStart);
         const endYear = endOfYear(projectEnd);
         interval = { start: startYear, end: endYear };
         totalUnits = differenceInYears(endYear, startYear) + 1;
-        headerGroups = Array.from({ length: totalUnits }, (_, i) => ({ label: format(addYears(startYear, i), 'yyyy'), units: 1 }));
+        primaryHeader = [{ label: 'Years', units: totalUnits }];
+        secondaryHeader = Array.from({ length: totalUnits }, (_, i) => ({ label: format(addYears(startYear, i), 'yyyy'), units: 1 }));
         break;
+      }
     }
     
     return {
       interval,
-      headerGroups,
+      primaryHeader,
+      secondaryHeader,
       totalUnits,
       timelineWidth: totalUnits * cellWidth,
     };
@@ -128,14 +152,16 @@ const GanttChart = () => {
     let startOffset = 0;
     let duration = 0;
 
+    if (!interval.start || !interval.end) return { left: 0, width: 0};
+
     switch (timeScale) {
         case "Day":
             startOffset = differenceInDays(taskStartDate, interval.start);
             duration = differenceInDays(taskEndDate, taskStartDate) + 1;
             break;
         case "Week":
-            startOffset = differenceInWeeks(taskStartDate, interval.start);
-            duration = Math.max(1, differenceInWeeks(taskEndDate, taskStartDate));
+            startOffset = differenceInWeeks(taskStartDate, interval.start, { weekStartsOn: 1 });
+            duration = Math.max(1, differenceInWeeks(taskEndDate, taskStartDate, { weekStartsOn: 1 }));
             break;
         case "Month":
             startOffset = differenceInMonths(taskStartDate, interval.start);
@@ -143,7 +169,7 @@ const GanttChart = () => {
             break;
         case "Year":
             startOffset = differenceInYears(taskStartDate, interval.start);
-            duration = Math.max(1, differenceInYears(taskEndDate, taskStartDate));
+            duration = Math.max(1, differenceInYears(taskEndDate, taskStartDate) + 1);
             break;
     }
     
@@ -277,12 +303,21 @@ const GanttChart = () => {
           <div className="overflow-x-auto bg-card">
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
-              <div className="sticky top-0 z-20 grid bg-card/95 backdrop-blur-sm" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${cellWidth}px)` }}>
-                {headerGroups.map((group, i) => (
-                  <div key={i} className={`h-14 flex items-center justify-center border-r border-b border-border/50`}>
-                    <span className="font-semibold text-base">{group.label}</span>
-                  </div>
-                ))}
+              <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm">
+                <div className="grid" style={{ gridTemplateColumns: `repeat(${primaryHeader.reduce((acc, g) => acc + g.units, 0)}, ${cellWidth}px)` }}>
+                  {primaryHeader.map((group, i) => (
+                    <div key={i} className="h-7 flex items-center justify-center border-r border-b border-border/50" style={{ gridColumn: `span ${group.units}` }}>
+                      <span className="font-semibold text-sm">{group.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${cellWidth}px)` }}>
+                  {secondaryHeader.map((group, i) => (
+                    <div key={i} className="h-7 flex items-center justify-center border-r border-b border-border/50" style={{ gridColumn: `span ${group.units}` }}>
+                      <span className="font-medium text-xs">{group.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
               
               {/* Timeline Content */}
@@ -392,4 +427,6 @@ const GanttChart = () => {
 
 export default GanttChart;
  
+    
+
     
