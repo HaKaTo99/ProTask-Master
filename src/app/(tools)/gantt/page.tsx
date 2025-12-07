@@ -22,9 +22,9 @@ import {
   isSunday,
   addMonths,
   subMonths,
-  eachYearOfInterval,
   getDay,
   subYears,
+  eachYearOfInterval,
 } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -38,6 +38,7 @@ import {
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import type { Task } from "@/lib/types";
 
 type Node = {
   id: string;
@@ -144,7 +145,10 @@ const GanttChart = () => {
       }
       case "Month": {
         const currentMonthStart = startOfMonth(currentDate);
-        interval = { start: subMonths(currentMonthStart, 1), end: endOfMonth(addMonths(currentMonthStart, 1)) };
+        const yearStart = startOfYear(currentDate);
+        const yearEnd = endOfYear(currentDate);
+        interval = { start: yearStart, end: yearEnd };
+
         secondaryHeaderDates = eachDayOfInterval(interval);
         totalUnits = secondaryHeaderDates.length;
         
@@ -280,10 +284,21 @@ const GanttChart = () => {
 
   const getSecondaryHeaderGridTemplate = () => {
     if (timeScale === 'Week') {
-      return `repeat(${secondaryHeader.length}, ${7 * cellWidth}px)`;
+      // Each secondary header (week) spans 7 days (7 cells)
+      return secondaryHeader.map(g => `${g.units * cellWidth}px`).join(' ');
     }
     return secondaryHeader.map(g => `${g.units * cellWidth}px`).join(' ');
   }
+
+  const getPrimaryHeaderGridTemplate = () => {
+    return primaryHeader.map(g => `${g.units * cellWidth}px`).join(' ');
+  }
+
+  const getTaskLevel = (task: Task) => {
+    if (task.type === 'WBS') return 1;
+    if (task.type === 'Activity') return 2;
+    return 0;
+  };
 
   return (
     <div className="p-4 md:p-8 h-full flex flex-col bg-background">
@@ -311,9 +326,9 @@ const GanttChart = () => {
             <div className="flex items-center gap-2 w-40">
                 <span className="text-sm text-muted-foreground">Cell Width</span>
                 <Slider
-                    min={timeScale === 'Year' ? 50 : 10}
-                    max={timeScale === 'Year' ? 200 : (timeScale === 'Month' ? 100 : 150)}
-                    step={10}
+                    min={timeScale === 'Year' ? 50 : (timeScale === 'Week' ? 10 : 20)}
+                    max={timeScale === 'Year' ? 200 : (timeScale === 'Month' ? 60 : 80)}
+                    step={5}
                     value={[cellWidth]}
                     onValueChange={(value) => setCellWidth(value[0])}
                 />
@@ -337,12 +352,12 @@ const GanttChart = () => {
                 {tasks.map((task) => (
                   <TableRow key={task.id} style={{ height: `${ROW_HEIGHT_PX}px` }} className="border-b border-border/50 hover:bg-muted/50">
                     <TableCell>
-                      <div className="flex items-center gap-3">
-                        <span className="font-medium truncate">{task.title}</span>
+                      <div className="flex items-center gap-3" style={{ paddingLeft: `${getTaskLevel(task) * 20}px` }}>
+                        <span className={`font-medium truncate ${task.type !== 'Activity' ? 'font-bold' : ''}`}>{task.title}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{format(parseISO(task.startDate), 'd MMM')}</TableCell>
-                    <TableCell className="text-muted-foreground">{format(parseISO(task.endDate), 'd MMM')}</TableCell>
+                    <TableCell className="text-muted-foreground">{format(parseISO(task.startDate), 'd MMM yy')}</TableCell>
+                    <TableCell className="text-muted-foreground">{format(parseISO(task.endDate), 'd MMM yy')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -360,7 +375,7 @@ const GanttChart = () => {
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
               <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm">
-                <div className="grid border-b border-border/50" style={{ gridTemplateColumns: primaryHeader.map(g => `${g.units * cellWidth}px`).join(' ') }}>
+                <div className="grid border-b border-border/50" style={{ gridTemplateColumns: getPrimaryHeaderGridTemplate() }}>
                   {primaryHeader.map((group, i) => (
                     <div key={i} className="h-7 flex items-center justify-center border-r border-border/50">
                       <span className="font-semibold text-sm">{group.label}</span>
@@ -391,8 +406,8 @@ const GanttChart = () => {
                       if ((timeScale === 'Day' || timeScale === 'Month') && secondaryHeaderDates[i]) {
                         isWeekend = isSaturday(secondaryHeaderDates[i]) || isSunday(secondaryHeaderDates[i]);
                       } else if (timeScale === 'Week') {
-                          const dayOfWeek = (i + getDay(interval.start) -1) % 7;
-                          if (dayOfWeek === 5 || dayOfWeek === 6) {
+                          const dayOfWeek = (getDay(interval.start) + i) % 7;
+                          if (dayOfWeek === 6 || dayOfWeek === 0) { // Saturday or Sunday
                             isWeekend = true;
                           }
                       }
@@ -457,6 +472,8 @@ const GanttChart = () => {
                 {tasks.map((task, index) => {
                   const { left, width } = getTaskPosition(task.startDate, task.endDate);
                   const progress = statusProgress[task.status] || 0;
+                  const isSummary = task.type !== 'Activity';
+
                   return (
                     <div 
                       key={task.id} 
@@ -472,12 +489,14 @@ const GanttChart = () => {
                       <div
                         className="relative h-full w-full flex items-center rounded-sm text-primary-foreground overflow-hidden shadow-sm"
                         style={{
-                          backgroundImage: `linear-gradient(to right, hsl(var(--primary)/0.8), hsl(var(--primary)/0.7) ${progress}%, hsl(var(--primary)/0.25) ${progress}%)`
+                          backgroundImage: isSummary 
+                            ? `linear-gradient(to right, hsl(var(--foreground)/0.8), hsl(var(--foreground)/0.7) ${progress}%, hsl(var(--foreground)/0.25) ${progress}%)`
+                            : `linear-gradient(to right, hsl(var(--primary)/0.8), hsl(var(--primary)/0.7) ${progress}%, hsl(var(--primary)/0.25) ${progress}%)`
                         }}
                         title={`${task.title} (${format(parseISO(task.startDate), 'MMM d')} - ${format(parseISO(task.endDate), 'MMM d')})`}
                       >
                          <div className="flex items-center w-full px-2">
-                           {task.assignee && (
+                           {task.assignee && !isSummary && (
                               <Avatar className="h-6 w-6 border-2 border-background/50 flex-shrink-0">
                                   <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
                                   <AvatarFallback>{task.assignee.name.charAt(0)}</AvatarFallback>
@@ -485,6 +504,12 @@ const GanttChart = () => {
                             )}
                             <span className="ml-2 truncate text-sm font-medium">{task.title}</span>
                          </div>
+                         {isSummary && (
+                           <>
+                            <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-t-[6px] border-t-transparent border-r-[8px] border-r-foreground border-b-[6px] border-b-transparent"></div>
+                            <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-t-[6px] border-t-transparent border-l-[8px] border-l-foreground border-b-[6px] border-b-transparent"></div>
+                           </>
+                         )}
                       </div>
                     </div>
                   );

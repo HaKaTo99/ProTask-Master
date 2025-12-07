@@ -19,4 +19,6 @@ export type Task = {
   startDate: string; // ISO string
   endDate: string;   // ISO string
   dependencies: string[]; // array of task ids
+  type: 'EPS' | 'WBS' | 'Activity';
+  parentId?: string | null;
 };

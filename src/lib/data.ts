@@ -1,6 +1,5 @@
 import { TeamMember, Task } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { subDays, addDays } from 'date-fns';
 
 const now = new Date();
 
@@ -42,115 +41,206 @@ export const teamMembers: TeamMember[] = [
   },
 ];
 
-export const tasks: Task[] = [
+const rawTasks: Omit<Task, 'type' | 'parentId' | 'dependencies'>[] = [
+  // EPS
   {
-    id: 'task-1',
-    title: 'Phase 1: Market Research & Feasibility Study',
-    description: 'Conduct in-depth market analysis for the new long-term project initiative.',
+    id: 'eps-1',
+    title: 'NextGen Platform Development',
+    description: 'Overall project for developing the next generation platform.',
+    status: 'In Progress',
+    priority: 'High',
+    startDate: '2023-01-15T00:00:00.000Z',
+    endDate: '2027-12-31T00:00:00.000Z',
+  },
+  // WBS
+  {
+    id: 'wbs-1',
+    title: '1.0 Project Initiation & Planning',
+    description: 'Initial planning, team formation, and feasibility studies.',
+    status: 'Done',
+    priority: 'High',
+    startDate: '2023-01-15T00:00:00.000Z',
+    endDate: '2023-05-30T00:00:00.000Z',
+  },
+  {
+    id: 'wbs-2',
+    title: '2.0 Core Technology Development',
+    description: 'Development of the core engine and infrastructure.',
+    status: 'In Progress',
+    priority: 'Urgent',
+    startDate: '2023-06-01T00:00:00.000Z',
+    endDate: '2024-06-30T00:00:00.000Z',
+  },
+  {
+    id: 'wbs-3',
+    title: '3.0 Feature Development (Alpha/Beta)',
+    description: 'Implementation of key features for Alpha and Beta releases.',
+    status: 'In Progress',
+    priority: 'High',
+    startDate: '2024-07-01T00:00:00.000Z',
+    endDate: '2025-09-30T00:00:00.000Z',
+  },
+  {
+    id: 'wbs-4',
+    title: '4.0 Go-to-Market & Launch',
+    description: 'Marketing, partnerships, and public launch activities.',
+    status: 'To Do',
+    priority: 'High',
+    startDate: '2025-10-01T00:00:00.000Z',
+    endDate: '2026-06-30T00:00:00.000Z',
+  },
+  {
+    id: 'wbs-5',
+    title: '5.0 Post-Launch & V2 Planning',
+    description: 'Post-launch support, monitoring, and planning for version 2.',
+    status: 'To Do',
+    priority: 'Medium',
+    startDate: '2026-07-01T00:00:00.000Z',
+    endDate: '2027-12-31T00:00:00.000Z',
+  },
+  // Activities
+  {
+    id: 'act-1.1',
+    title: '1.1 Market Research',
+    description: 'In-depth analysis of market trends and competitors.',
     status: 'Done',
     priority: 'High',
     assignee: teamMembers[2],
-    startDate: '2023-02-15T00:00:00.000Z',
-    endDate: '2023-06-30T00:00:00.000Z',
-    dependencies: [],
+    startDate: '2023-01-15T00:00:00.000Z',
+    endDate: '2023-03-15T00:00:00.000Z',
   },
   {
-    id: 'task-2',
-    title: 'Phase 2: Core Technology Prototyping',
-    description: 'Develop and test the core technology stack for the next-generation platform.',
+    id: 'act-1.2',
+    title: '1.2 Technical Feasibility Study',
+    description: 'Evaluate technical requirements and potential challenges.',
+    status: 'Done',
+    priority: 'High',
+    assignee: teamMembers[4],
+    startDate: '2023-03-16T00:00:00.000Z',
+    endDate: '2023-05-30T00:00:00.000Z',
+  },
+  {
+    id: 'act-2.1',
+    title: '2.1 Architecture Design',
+    description: 'Design the core system architecture and data models.',
     status: 'Done',
     priority: 'Urgent',
     assignee: teamMembers[4],
-    startDate: '2023-07-01T00:00:00.000Z',
-    endDate: '2024-01-31T00:00:00.000Z',
-    dependencies: ['task-1'],
+    startDate: '2023-06-01T00:00:00.000Z',
+    endDate: '2023-09-01T00:00:00.000Z',
   },
   {
-    id: 'task-3',
-    title: 'Alpha Version Development',
-    description: 'Full development cycle for the alpha release, including core features.',
+    id: 'act-2.2',
+    title: '2.2 Backend Prototyping (Go & Kubernetes)',
+    description: 'Develop backend prototype.',
     status: 'In Progress',
-    priority: 'High',
-    assignee: teamMembers[0],
-    startDate: '2024-02-01T00:00:00.000Z',
-    endDate: '2024-10-31T00:00:00.000Z',
-    dependencies: ['task-2'],
-  },
-  {
-    id: 'task-4',
-    title: 'Establish Strategic Partnerships',
-    description: 'Identify and build relationships with key industry partners.',
-    status: 'In Progress',
-    priority: 'Medium',
-    assignee: teamMembers[2],
-    startDate: '2024-05-15T00:00:00.000Z',
-    endDate: '2025-01-15T00:00:00.000Z',
-    dependencies: ['task-1'],
-  },
-  {
-    id: 'task-5',
-    title: 'Beta Program and User Feedback Collection',
-    description: 'Launch a closed beta program and systematically gather user feedback.',
-    status: 'To Do',
-    priority: 'High',
-    assignee: teamMembers[3],
-    startDate: '2024-11-01T00:00:00.000Z',
-    endDate: '2025-04-30T00:00:00.000Z',
-    dependencies: ['task-3'],
-  },
-  {
-    id: 'task-6',
-    title: 'Infrastructure Scaling & Global Deployment Prep',
-    description: 'Upgrade server infrastructure to handle global traffic and prepare for multi-region deployment.',
-    status: 'To Do',
     priority: 'Urgent',
     assignee: teamMembers[4],
-    startDate: '2025-02-01T00:00:00.000Z',
-    endDate: '2025-08-31T00:00:00.000Z',
-    dependencies: ['task-3'],
+    startDate: '2023-09-02T00:00:00.000Z',
+    endDate: '2024-03-30T00:00:00.000Z',
   },
   {
-    id: 'task-7',
-    title: 'Official Public Launch Campaign',
-    description: 'Develop and execute a comprehensive marketing campaign for the public launch.',
+    id: 'act-3.1',
+    title: '3.1 User Authentication Module',
+    description: 'Implement secure user login and registration.',
+    status: 'In Progress',
+    priority: 'High',
+    assignee: teamMembers[0],
+    startDate: '2024-07-01T00:00:00.000Z',
+    endDate: '2024-10-01T00:00:00.000Z',
+  },
+  {
+    id: 'act-3.2',
+    title: '3.2 Data Analytics Dashboard',
+    description: 'Build the main dashboard with key metrics.',
     status: 'To Do',
     priority: 'High',
-    assignee: teamMembers[3],
-    startDate: '2025-09-01T00:00:00.000Z',
-    endDate: '2025-12-31T00:00:00.000Z',
-    dependencies: ['task-5', 'task-6'],
-  },
-  {
-    id: 'task-8',
-    title: 'Gen 2 Feature Planning',
-    description: 'Research and plan the feature set for the second generation of the product.',
-    status: 'To Do',
-    priority: 'Medium',
     assignee: teamMembers[1],
-    startDate: '2026-01-15T00:00:00.000Z',
-    endDate: '2026-07-31T00:00:00.000Z',
-    dependencies: ['task-7'],
+    startDate: '2024-10-02T00:00:00.000Z',
+    endDate: '2025-03-30T00:00:00.000Z',
   },
   {
-    id: 'task-9',
-    title: 'Internationalization & Localization (I18n & L10n)',
-    description: 'Adapt the platform for multiple languages and regions.',
+    id: 'act-4.1',
+    title: '4.1 Marketing Website Launch',
+    description: 'Launch the official product marketing website.',
     status: 'To Do',
-    priority: 'Medium',
+    priority: 'High',
     assignee: teamMembers[0],
-    startDate: '2026-08-01T00:00:00.000Z',
-    endDate: '2027-02-28T00:00:00.000Z',
-    dependencies: ['task-8'],
+    startDate: '2025-10-01T00:00:00.000Z',
+    endDate: '2026-01-15T00:00:00.000Z',
   },
   {
-    id: 'task-10',
-    title: 'Long-term AI Strategy Development',
-    description: 'Define the 5-year AI and Machine Learning strategy for the company.',
+    id: 'act-5.1',
+    title: '5.1 Gen 2 Feature Planning',
+    description: 'Plan the feature set for the second generation of the product.',
     status: 'To Do',
-    priority: 'Low',
+    priority: 'Medium',
     assignee: teamMembers[1],
-    startDate: '2027-03-01T00:00:00.000Z',
-    endDate: '2027-11-30T00:00:00.000Z',
-    dependencies: ['task-9'],
+    startDate: '2026-07-01T00:00:00.000Z',
+    endDate: '2027-02-15T00:00:00.000Z',
   },
 ];
+
+function getTaskType(id: string): 'EPS' | 'WBS' | 'Activity' {
+  if (id.startsWith('eps')) return 'EPS';
+  if (id.startsWith('wbs')) return 'WBS';
+  return 'Activity';
+}
+
+function getParentId(id: string): string | null {
+    if (id.startsWith('wbs')) return 'eps-1';
+    if (id.startsWith('act')) {
+        const wbsNum = id.split('-')[1].split('.')[0];
+        return `wbs-${wbsNum}`;
+    }
+    return null;
+}
+
+function getDependencies(id: string): string[] {
+    const deps: { [key: string]: string[] } = {
+        'act-1.2': ['act-1.1'],
+        'wbs-2': ['wbs-1'],
+        'act-2.1': ['act-1.2'],
+        'act-2.2': ['act-2.1'],
+        'wbs-3': ['wbs-2'],
+        'act-3.1': ['act-2.2'],
+        'act-3.2': ['act-3.1'],
+        'wbs-4': ['wbs-3'],
+        'act-4.1': ['wbs-3'],
+        'wbs-5': ['wbs-4'],
+        'act-5.1': ['act-4.1'],
+    };
+    return deps[id] || [];
+}
+
+const processedTasks: Task[] = rawTasks.map(task => ({
+  ...task,
+  type: getTaskType(task.id),
+  parentId: getParentId(task.id),
+  dependencies: getDependencies(task.id),
+}));
+
+// Create a map and a new array to store the sorted tasks
+const taskMap = new Map(processedTasks.map(task => [task.id, task]));
+const sortedTasks: Task[] = [];
+const visited = new Set<string>();
+
+function visit(taskId: string) {
+    if (visited.has(taskId)) return;
+    visited.add(taskId);
+    
+    const task = taskMap.get(taskId);
+    if (!task) return;
+
+    // Find children
+    const children = processedTasks.filter(t => t.parentId === taskId)
+                                   .sort((a, b) => a.id.localeCompare(b.id));
+
+    sortedTasks.push(task);
+    children.forEach(child => visit(child.id));
+}
+
+// Start with the root EPS node
+visit('eps-1');
+
+export const tasks: Task[] = sortedTasks;
