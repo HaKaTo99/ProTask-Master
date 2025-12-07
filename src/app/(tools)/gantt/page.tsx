@@ -25,6 +25,7 @@ import {
   subYears,
   eachYearOfInterval,
   getISOWeek,
+  addDays,
 } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -114,6 +115,14 @@ const GanttChart = () => {
   const [cellWidth, setCellWidth] = useState(40);
   const [collapsed, setCollapsed] = useState(new Set<string>());
   const [allTasks, setAllTasks] = useState<Task[]>(initialTasks);
+  
+  const [draggingInfo, setDraggingInfo] = useState<{
+    task: Task;
+    action: 'move' | 'resize-end';
+    initialX: number;
+    initialStartDate: Date;
+    initialEndDate: Date;
+  } | null>(null);
 
   const handleUpdateTask = (taskId: string, newTitle: string) => {
     setAllTasks(prevTasks =>
@@ -286,8 +295,10 @@ const GanttChart = () => {
     let finalTimelineWidth = 0;
      if (timeScale === 'Year') {
       finalTimelineWidth = totalUnits * cellWidth;
+    } else if (timeScale === 'Week') {
+        finalTimelineWidth = secondaryHeader.reduce((acc, h) => acc + h.units * cellWidth, 0);
     } else {
-      finalTimelineWidth = secondaryHeader.reduce((acc, h) => acc + h.units * cellWidth, 0);
+      finalTimelineWidth = totalUnits * cellWidth;
     }
 
     return {
@@ -356,6 +367,81 @@ const GanttChart = () => {
     };
   }, [resize, stopResizing]);
   
+  const handleDragStart = (e: React.MouseEvent, task: Task, action: 'move' | 'resize-end') => {
+    if (task.type !== 'Activity' || task.startDate === task.endDate) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    setDraggingInfo({
+      task,
+      action,
+      initialX: e.clientX,
+      initialStartDate: parseISO(task.startDate),
+      initialEndDate: parseISO(task.endDate),
+    });
+  };
+
+  const handleDragging = useCallback((e: MouseEvent) => {
+    if (!draggingInfo) return;
+
+    const dx = e.clientX - draggingInfo.initialX;
+    let daysMoved = 0;
+    
+    if (timeScale === 'Year') {
+      const monthsMoved = Math.round(dx / cellWidth);
+      daysMoved = monthsMoved * 30; // Approximation
+    } else {
+      daysMoved = Math.round(dx / cellWidth);
+    }
+    
+    let newStartDate = draggingInfo.initialStartDate;
+    let newEndDate = draggingInfo.initialEndDate;
+
+    if (draggingInfo.action === 'move') {
+      const duration = differenceInDays(draggingInfo.initialEndDate, draggingInfo.initialStartDate);
+      newStartDate = addDays(draggingInfo.initialStartDate, daysMoved);
+      newEndDate = addDays(newStartDate, duration);
+    } else if (draggingInfo.action === 'resize-end') {
+      newEndDate = addDays(draggingInfo.initialEndDate, daysMoved);
+      if (differenceInDays(newEndDate, newStartDate) < 0) {
+        newEndDate = newStartDate;
+      }
+    }
+
+    setAllTasks(prevTasks => prevTasks.map(t => {
+      if (t.id === draggingInfo.task.id) {
+        return {
+          ...t,
+          startDate: newStartDate.toISOString(),
+          endDate: newEndDate.toISOString(),
+        };
+      }
+      return t;
+    }));
+  }, [draggingInfo, cellWidth, timeScale]);
+
+  const handleDragEnd = useCallback(() => {
+    if (draggingInfo) {
+      setDraggingInfo(null);
+    }
+  }, [draggingInfo]);
+  
+  useEffect(() => {
+    if (draggingInfo) {
+      document.body.style.cursor = draggingInfo.action === 'move' ? 'grabbing' : 'ew-resize';
+      window.addEventListener('mousemove', handleDragging);
+      window.addEventListener('mouseup', handleDragEnd);
+    } else {
+      document.body.style.cursor = 'default';
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleDragging);
+      window.removeEventListener('mouseup', handleDragEnd);
+      document.body.style.cursor = 'default';
+    };
+  }, [draggingInfo, handleDragging, handleDragEnd]);
+  
   const statusProgress: { [key: string]: number } = {
     'Done': 100,
     'In Progress': 60,
@@ -392,9 +478,13 @@ const GanttChart = () => {
       }
   }
 
- const getGridTemplate = (headerGroups: HeaderGroup[]) => {
+ const getGridTemplate = (headerGroups: HeaderGroup[], forTimeScale: TimeScale) => {
+    if (forTimeScale === 'Week') {
+        return headerGroups.map(g => `${g.units * cellWidth}px`).join(' ');
+    }
     return headerGroups.map(g => `${g.units * cellWidth}px`).join(' ');
   }
+
 
   const getTaskLevel = (task: Task) => {
     if (task.type === 'WBS') return 1;
@@ -506,27 +596,28 @@ const GanttChart = () => {
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
               <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm">
-                <div className="grid border-b border-border/50" style={{ gridTemplateColumns: getGridTemplate(primaryHeader) }}>
+                <div className="grid border-b border-border/50" style={{ gridTemplateColumns: getGridTemplate(primaryHeader, timeScale) }}>
                   {primaryHeader.map((group, i) => (
                     <div key={i} className="h-7 flex items-center justify-center border-r border-border/50">
                       <span className="font-semibold text-sm">{group.label}</span>
                     </div>
                   ))}
                 </div>
-                <div className="grid" style={{ gridTemplateColumns: getGridTemplate(secondaryHeader) }}>
-                  {secondaryHeader.map((group, i) => {
+                 <div className="grid" style={{ gridTemplateColumns: getGridTemplate(secondaryHeader, timeScale === 'Week' ? 'Day' : timeScale) }}>
+                  {(timeScale === 'Week' ? secondaryHeaderDates : secondaryHeader).map((group, i) => {
                      let isDayScale = timeScale === 'Day' || timeScale === 'Week' || timeScale === 'Month';
                      let isWeekend = false;
                      if(isDayScale && secondaryHeaderDates[i]) {
                          const day = secondaryHeaderDates[i];
                          isWeekend = isSaturday(day) || isSunday(day);
                      }
+                    const label = timeScale === 'Week' ? format(secondaryHeaderDates[i], 'd') : group.label;
                     return (
                       <div key={i} className={cn(
                         "h-7 flex items-center justify-center border-r border-b border-border/50",
                          isWeekend && 'bg-muted/60'
                       )}>
-                        <span className="font-medium text-xs">{group.label}</span>
+                        <span className="font-medium text-xs">{label}</span>
                       </div>
                     )
                   })}
@@ -536,10 +627,10 @@ const GanttChart = () => {
               {/* Timeline Content */}
               <div className="relative" style={{ height: `${tasks.length * ROW_HEIGHT_PX}px` }}>
                  {/* Grid Lines */}
-                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: timeScale === 'Year' ? getGridTemplate(secondaryHeader) : `repeat(${totalUnits}, ${cellWidth}px)` }}>
+                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: timeScale === 'Year' ? getGridTemplate(secondaryHeader, 'Year') : `repeat(${totalUnits}, ${cellWidth}px)` }}>
                   { (timeScale === 'Year' ? secondaryHeader : secondaryHeaderDates).map((_, i) => {
                      let isWeekend = false;
-                      if (timeScale === 'Day' || timeScale === 'Month' || timeScale === 'Week') {
+                      if ((timeScale === 'Day' || timeScale === 'Month' || timeScale === 'Week') && secondaryHeaderDates[i]) {
                         const day = secondaryHeaderDates[i];
                         if (day) {
                           isWeekend = isSaturday(day) || isSunday(day);
@@ -640,6 +731,8 @@ const GanttChart = () => {
                     );
                   }
 
+                  const isDraggable = task.type === 'Activity' && !isMilestone;
+
                   return (
                     <div 
                       key={task.id} 
@@ -655,7 +748,12 @@ const GanttChart = () => {
                        <Tooltip>
                         <TooltipTrigger asChild>
                            <div
-                              className="relative h-full w-full flex items-center rounded-sm text-primary-foreground overflow-hidden shadow-sm cursor-pointer"
+                              onMouseDown={(e) => isDraggable && handleDragStart(e, task, 'move')}
+                              className={cn(
+                                "relative h-full w-full flex items-center rounded-sm text-primary-foreground overflow-hidden shadow-sm",
+                                isDraggable && "cursor-grab",
+                                draggingInfo?.task.id === task.id && "cursor-grabbing ring-2 ring-primary ring-offset-2 z-20",
+                              )}
                             >
                              <div 
                                 className="absolute inset-0"
@@ -667,6 +765,17 @@ const GanttChart = () => {
                                       : `linear-gradient(to right, hsl(var(--primary)/0.8), hsl(var(--primary)/0.7) ${progress}%, hsl(var(--primary)/0.25) ${progress}%)`)
                                 }}
                               />
+                              
+                              {/* Drag Handles */}
+                              {isDraggable && (
+                                <>
+                                  <div 
+                                    onMouseDown={(e) => handleDragStart(e, task, 'resize-end')}
+                                    className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-10"
+                                  />
+                                </>
+                              )}
+
                               <div className="relative flex items-center w-full px-2">
                                 {task.assignee && !isSummary && (
                                     <Avatar className="h-6 w-6 border-2 border-background/50 flex-shrink-0">
@@ -703,5 +812,3 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
-
-    
