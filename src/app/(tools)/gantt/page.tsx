@@ -23,6 +23,7 @@ import {
   isSunday,
   addMonths,
   subMonths,
+  eachYearOfInterval,
 } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -64,7 +65,7 @@ const GanttChart = () => {
         setCellWidth(40);
         break;
       case "Week":
-        setCellWidth(105); // 15 * 7
+        setCellWidth(15); // 15px per day, 105px per week
         break;
       case "Month":
         setCellWidth(120);
@@ -118,14 +119,15 @@ const GanttChart = () => {
         const intervalStart = subMonths(yearStart, 6);
         const intervalEnd = addMonths(endOfYear(currentDate), 6);
         interval = { start: intervalStart, end: intervalEnd };
-
+        
         const weekOptions = { weekStartsOn: 1 as const };
         const start = startOfWeek(interval.start, weekOptions);
         const end = endOfWeek(interval.end, weekOptions);
-        
-        const weeks = eachWeekOfInterval({ start, end }, weekOptions);
-        secondaryHeaderDates = weeks;
-        totalUnits = weeks.length;
+
+        secondaryHeaderDates = eachDayOfInterval({ start, end });
+        totalUnits = differenceInDays(end, start) + 1;
+
+        const weeksInInterval = eachWeekOfInterval({start, end}, weekOptions);
 
         const yearsInInterval = eachYearOfInterval({ start, end });
         
@@ -137,8 +139,8 @@ const GanttChart = () => {
             return { label: format(yearStart, 'yyyy'), units: weeksInYear };
         }).filter(group => group.units > 0);
         
-        secondaryHeader = weeks.map(week => ({ 
-            label: `W${format(week, 'w')}`, units: 1 
+        secondaryHeader = weeksInInterval.map(week => ({ 
+            label: `W${format(week, 'w')}`, units: 7
         }));
         break;
       }
@@ -179,19 +181,20 @@ const GanttChart = () => {
     }
     
     let effectiveCellWidth = cellWidth;
-    if (timeScale === 'Day') {
+    let effectiveTotalUnits = totalUnits;
+    if (timeScale === 'Week') {
         effectiveCellWidth = cellWidth;
-    } else if (timeScale === 'Week') {
-        effectiveCellWidth = cellWidth;
+        effectiveTotalUnits = totalUnits;
     }
+
 
     return {
       interval,
       primaryHeader,
       secondaryHeader,
       secondaryHeaderDates,
-      totalUnits,
-      timelineWidth: totalUnits * effectiveCellWidth,
+      totalUnits: effectiveTotalUnits,
+      timelineWidth: effectiveTotalUnits * effectiveCellWidth,
     };
   }, [timeScale, currentDate, cellWidth]);
   
@@ -207,22 +210,15 @@ const GanttChart = () => {
     const weekOptions = { weekStartsOn: 1 as const };
 
     switch (timeScale) {
-        case "Day": {
-            const intervalStart = interval.start;
+        case "Day":
+        case "Week":
+        {
+            const intervalStart = timeScale === 'Week' ? startOfWeek(interval.start, weekOptions) : interval.start;
             startOffset = differenceInDays(taskStartDate, intervalStart);
             duration = differenceInDays(taskEndDate, taskStartDate) + 1;
             const left = startOffset * cellWidth;
             const width = duration * cellWidth;
             return { left, width };
-        }
-        case "Week": {
-             const intervalStart = startOfWeek(interval.start, weekOptions);
-             startOffset = differenceInWeeks(taskStartDate, intervalStart, weekOptions);
-             const endOffset = differenceInWeeks(taskEndDate, intervalStart, weekOptions);
-             duration = endOffset - startOffset + 1;
-             const left = startOffset * cellWidth;
-             const width = duration * cellWidth;
-             return { left, width };
         }
         case "Month": {
             const monthStart = interval.start;
@@ -295,13 +291,9 @@ const GanttChart = () => {
   if (interval.start && interval.end) {
       const today = new Date();
       if (today >= interval.start && today <= interval.end) {
-          if (timeScale === 'Day') {
-              const todayOffset = differenceInDays(today, interval.start);
-              todayPositionX = todayOffset * cellWidth;
-          } else if (timeScale === 'Week') {
-              const weekOptions = { weekStartsOn: 1 as const };
-              const intervalStartForWeek = startOfWeek(interval.start, weekOptions);
-              const todayOffset = differenceInWeeks(today, intervalStartForWeek, weekOptions);
+          if (timeScale === 'Day' || timeScale === 'Week') {
+              const intervalStart = timeScale === 'Week' ? startOfWeek(interval.start, { weekStartsOn: 1 }) : interval.start;
+              const todayOffset = differenceInDays(today, intervalStart);
               if (todayOffset >= 0) {
                  todayPositionX = todayOffset * cellWidth;
               }
@@ -336,9 +328,9 @@ const GanttChart = () => {
             <div className="flex items-center gap-2 w-40">
                 <span className="text-sm text-muted-foreground">Cell Width</span>
                 <Slider
-                    min={timeScale === 'Day' ? 30 : (timeScale === 'Week' ? 50 : 50)}
-                    max={timeScale === 'Day' ? 150 : (timeScale === 'Week' ? 200 : (timeScale === 'Month' ? 400 : 800))}
-                    step={10}
+                    min={timeScale === 'Day' ? 30 : (timeScale === 'Week' ? 10 : 50)}
+                    max={timeScale === 'Day' ? 150 : (timeScale === 'Week' ? 50 : (timeScale === 'Month' ? 400 : 800))}
+                    step={timeScale === 'Week' ? 5 : 10}
                     value={[cellWidth]}
                     onValueChange={(value) => setCellWidth(value[0])}
                 />
@@ -385,14 +377,14 @@ const GanttChart = () => {
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
               <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm">
-                <div className="grid border-b border-border/50" style={{ gridTemplateColumns: primaryHeader.map(g => `${g.units * cellWidth}px`).join(' ') }}>
+                <div className="grid border-b border-border/50" style={{ gridTemplateColumns: primaryHeader.map(g => `${g.units * (timeScale === 'Week' ? 7 : 1) * cellWidth}px`).join(' ') }}>
                   {primaryHeader.map((group, i) => (
                     <div key={i} className="h-7 flex items-center justify-center border-r border-border/50">
                       <span className="font-semibold text-sm">{group.label}</span>
                     </div>
                   ))}
                 </div>
-                <div className="grid" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${cellWidth}px)` }}>
+                <div className="grid" style={{ gridTemplateColumns: secondaryHeader.map(g => `${g.units * cellWidth}px`).join(' ') }}>
                   {secondaryHeader.map((group, i) => {
                     const isWeekend = timeScale === 'Day' && (isSaturday(secondaryHeaderDates[i]) || isSunday(secondaryHeaderDates[i]));
                     return (
@@ -407,11 +399,14 @@ const GanttChart = () => {
               {/* Timeline Content */}
               <div className="relative" style={{ height: `${tasks.length * ROW_HEIGHT_PX}px` }}>
                  {/* Grid Lines */}
-                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${cellWidth}px)` }}>
-                  {Array.from({ length: totalUnits }).map((_, i) => {
+                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: timeScale === 'Week' ? secondaryHeader.map(g => `${g.units * cellWidth}px`).join(' ') : `repeat(${totalUnits}, ${cellWidth}px)` }}>
+                  {Array.from({ length: timeScale === 'Week' ? secondaryHeader.length : totalUnits }).map((_, i) => {
                      let isWeekend = false;
                       if (timeScale === 'Day' && secondaryHeaderDates[i]) {
                         isWeekend = isSaturday(secondaryHeaderDates[i]) || isSunday(secondaryHeaderDates[i]);
+                      }
+                      if (timeScale === 'Week' && secondaryHeaderDates[i * 7]) {
+                        // For week view we don't highlight individual cells
                       }
                     return (
                       <div key={i} className={`border-r border-border/30 h-full ${isWeekend ? 'bg-muted/60' : ''}`}></div>
