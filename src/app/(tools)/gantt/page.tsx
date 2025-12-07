@@ -1,4 +1,6 @@
 
+"use client";
+
 import { tasks } from "@/lib/data";
 import { Card } from "@/components/ui/card";
 import {
@@ -18,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 type Node = {
   id: string;
@@ -29,10 +32,41 @@ type Node = {
 const ROW_HEIGHT_PX = 56; // Corresponds to h-14 in Tailwind
 
 const GanttChart = () => {
+  const [sidebarWidth, setSidebarWidth] = useState(400);
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
   const monthStart = startOfMonth(new Date());
   const monthEnd = endOfMonth(new Date());
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const totalDays = differenceInDays(monthEnd, monthStart) + 1;
+
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback((mouseMoveEvent: MouseEvent) => {
+    if (isResizing && sidebarRef.current) {
+      const newWidth = mouseMoveEvent.clientX - sidebarRef.current.getBoundingClientRect().left;
+      if (newWidth > 300 && newWidth < 800) { // Set min and max width
+        setSidebarWidth(newWidth);
+      }
+    }
+  }, [isResizing]);
+
+  useEffect(() => {
+    window.addEventListener('mousemove', resize);
+    window.addEventListener('mouseup', stopResizing);
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [resize, stopResizing]);
 
   const getTaskPosition = (taskStartDate: string, taskEndDate: string) => {
     const startDate = parseISO(taskStartDate);
@@ -80,9 +114,9 @@ const GanttChart = () => {
       </header>
 
       <Card className="overflow-hidden flex-1 flex flex-col">
-        <div className="grid flex-1" style={{ gridTemplateColumns: "minmax(350px, 1.2fr) 2fr" }}>
+        <div className="grid flex-1" style={{ gridTemplateColumns: `${sidebarWidth}px 1fr` }}>
           {/* Task Details Column */}
-          <div className="border-r overflow-y-auto">
+          <div ref={sidebarRef} className="relative overflow-y-auto">
             <Table className="relative">
               <TableHeader className="sticky top-0 bg-secondary/80 backdrop-blur-sm z-10">
                 <TableRow className="h-14 hover:bg-transparent">
@@ -105,6 +139,12 @@ const GanttChart = () => {
                 ))}
               </TableBody>
             </Table>
+             <div 
+              className="absolute h-full w-2 top-0 right-0 cursor-col-resize select-none"
+              onMouseDown={startResizing}
+             >
+                <div className="h-full w-[1px] bg-border hover:bg-primary transition-colors mx-auto"></div>
+             </div>
           </div>
           
           {/* Timeline Column */}
