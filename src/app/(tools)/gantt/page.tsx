@@ -38,8 +38,10 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import type { Task } from "@/lib/types";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Diamond } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 type Node = {
   id: string;
@@ -198,9 +200,9 @@ const GanttChart = () => {
         break;
       }
       case "Month": {
-        const quarterStart = startOfMonth(subMonths(currentDate, 1));
-        const quarterEnd = endOfMonth(addMonths(currentDate, 1));
-        interval = { start: quarterStart, end: quarterEnd };
+        const yearStart = startOfYear(currentDate);
+        const yearEnd = endOfYear(currentDate);
+        interval = { start: yearStart, end: yearEnd };
 
         secondaryHeaderDates = eachDayOfInterval(interval);
         totalUnits = secondaryHeaderDates.length;
@@ -457,6 +459,7 @@ const GanttChart = () => {
           
           {/* Timeline Column */}
           <div className="overflow-x-auto bg-card">
+          <TooltipProvider>
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
               <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm">
@@ -533,8 +536,9 @@ const GanttChart = () => {
                       const toNode = nodeMap.get(task.id);
                       if (!fromNode || !toNode) return null;
 
+                      const isMilestone = fromNode.startDate.getTime() === fromNode.endDate.getTime();
                       const fromPosition = getTaskPosition(fromNode.startDate.toISOString(), fromNode.endDate.toISOString());
-                      const fromX = fromPosition.left + fromPosition.width;
+                      const fromX = fromPosition.left + (isMilestone ? cellWidth / 2 : fromPosition.width);
 
                       const toPosition = getTaskPosition(toNode.startDate.toISOString(), toNode.endDate.toISOString());
                       const toX = toPosition.left;
@@ -557,11 +561,35 @@ const GanttChart = () => {
                   )}
                 </svg>
 
-                {/* Task Bars */}
+                {/* Task Bars & Milestones */}
                 {tasks.map((task, index) => {
                   const { left, width } = getTaskPosition(task.startDate, task.endDate);
                   const progress = statusProgress[task.status] || 0;
                   const isSummary = task.type !== 'Activity';
+                  const isMilestone = task.startDate === task.endDate;
+
+                  if (isMilestone) {
+                    return (
+                      <Tooltip key={task.id}>
+                        <TooltipTrigger asChild>
+                          <div
+                            className="absolute top-0 flex items-center justify-center z-10"
+                            style={{
+                              left: `${left + cellWidth / 2}px`,
+                              top: `${index * ROW_HEIGHT_PX + (ROW_HEIGHT_PX / 2)}px`,
+                              transform: 'translateX(-50%) translateY(-50%)',
+                            }}
+                          >
+                            <Diamond className="h-6 w-6 text-foreground fill-foreground" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="font-bold">{task.title}</p>
+                          <p className="text-muted-foreground">{format(parseISO(task.startDate), 'd MMM yyyy')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  }
 
                   return (
                     <div 
@@ -575,36 +603,44 @@ const GanttChart = () => {
                         padding: '12px 0'
                       }}
                     >
-                      <div
-                        className="relative h-full w-full flex items-center rounded-sm text-primary-foreground overflow-hidden shadow-sm"
-                        style={{
-                          backgroundImage: isSummary 
-                            ? `linear-gradient(to right, hsl(var(--foreground)/0.8), hsl(var(--foreground)/0.7) ${progress}%, hsl(var(--foreground)/0.25) ${progress}%)`
-                            : `linear-gradient(to right, hsl(var(--primary)/0.8), hsl(var(--primary)/0.7) ${progress}%, hsl(var(--primary)/0.25) ${progress}%)`
-                        }}
-                        title={`${task.title} (${format(parseISO(task.startDate), 'MMM d')} - ${format(parseISO(task.endDate), 'MMM d')})`}
-                      >
-                         <div className="flex items-center w-full px-2">
-                           {task.assignee && !isSummary && (
-                              <Avatar className="h-6 w-6 border-2 border-background/50 flex-shrink-0">
-                                  <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
-                                  <AvatarFallback>{task.assignee.name.charAt(0)}</AvatarFallback>
-                              </Avatar>
-                            )}
-                            <span className="ml-2 truncate text-sm font-medium">{task.title}</span>
-                         </div>
-                         {isSummary && (
-                           <>
-                            <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-t-[6px] border-t-transparent border-r-[8px] border-r-foreground border-b-[6px] border-b-transparent"></div>
-                            <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-t-[6px] border-t-transparent border-l-[8px] border-l-foreground border-b-[6px] border-b-transparent"></div>
-                           </>
-                         )}
-                      </div>
+                       <Tooltip>
+                        <TooltipTrigger asChild>
+                           <div
+                              className="relative h-full w-full flex items-center rounded-sm text-primary-foreground overflow-hidden shadow-sm cursor-pointer"
+                              style={{
+                                backgroundImage: isSummary 
+                                  ? `linear-gradient(to right, hsl(var(--foreground)/0.8), hsl(var(--foreground)/0.7) ${progress}%, hsl(var(--foreground)/0.25) ${progress}%)`
+                                  : `linear-gradient(to right, hsl(var(--primary)/0.8), hsl(var(--primary)/0.7) ${progress}%, hsl(var(--primary)/0.25) ${progress}%)`
+                              }}
+                            >
+                              <div className="flex items-center w-full px-2">
+                                {task.assignee && !isSummary && (
+                                    <Avatar className="h-6 w-6 border-2 border-background/50 flex-shrink-0">
+                                        <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
+                                        <AvatarFallback>{task.assignee.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                  )}
+                                  <span className="ml-2 truncate text-sm font-medium">{task.title}</span>
+                              </div>
+                              {isSummary && (
+                                <>
+                                  <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-t-[6px] border-t-transparent border-r-[8px] border-r-foreground border-b-[6px] border-b-transparent"></div>
+                                  <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-t-[6px] border-t-transparent border-l-[8px] border-l-foreground border-b-[6px] border-b-transparent"></div>
+                                </>
+                              )}
+                           </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                           <p className="font-bold">{task.title}</p>
+                           <p className="text-muted-foreground">{`${format(parseISO(task.startDate), 'd MMM')} - ${format(parseISO(task.endDate), 'd MMM yyyy')}`}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   );
                 })}
               </div>
             </div>
+           </TooltipProvider>
           </div>
         </div>
       </Card>

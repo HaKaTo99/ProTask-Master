@@ -172,6 +172,15 @@ const rawTasks: Omit<Task, 'type' | 'parentId' | 'dependencies'>[] = [
     startDate: '2025-10-01T00:00:00.000Z',
     endDate: '2026-01-15T00:00:00.000Z',
   },
+  {
+    id: 'milestone-1.4.2',
+    title: 'Public Launch',
+    description: 'Official public launch of the platform.',
+    status: 'To Do',
+    priority: 'Urgent',
+    startDate: '2026-06-30T00:00:00.000Z',
+    endDate: '2026-06-30T00:00:00.000Z',
+  },
   // Activities for wbs-1.5
   {
     id: 'act-1.5.1',
@@ -460,11 +469,23 @@ function getTaskType(id: string): 'EPS' | 'WBS' | 'Activity' {
 }
 
 function getParentId(id: string): string | null {
-    if (id.startsWith('wbs-')) {
-        const epsNum = id.split('-')[1].split('.')[0];
-        return `eps-${epsNum}`;
+    if (id.startsWith('wbs-') || id.startsWith('milestone-')) {
+        const prefix = id.startsWith('wbs-') ? 'wbs-' : 'milestone-';
+        const parts = id.substring(prefix.length).split('.');
+        if (parts.length > 1) {
+            const parentWbs = parts.slice(0, 2).join('.');
+            // If it's an activity or milestone under a WBS
+            if (id.startsWith('act-') || id.startsWith('milestone-')) {
+                 const epsNum = parts[0];
+                 const wbsNum = parts[1];
+                 return `wbs-${epsNum}.${wbsNum}`;
+            }
+             // If it's a WBS under an EPS
+            const epsNum = parts[0];
+            return `eps-${epsNum}`;
+        }
     }
-    if (id.startsWith('act-')) {
+     if (id.startsWith('act-')) {
         const parts = id.split('-')[1].split('.');
         const epsNum = parts[0];
         const wbsNum = parts[1];
@@ -485,8 +506,9 @@ function getDependencies(id: string): string[] {
         'act-1.3.2': ['act-1.3.1'],
         'wbs-1.4': ['wbs-1.3'],
         'act-1.4.1': ['act-1.3.2'],
-        'wbs-1.5': ['wbs-1.4'],
-        'act-1.5.1': ['act-1.4.1'],
+        'milestone-1.4.2': ['act-1.4.1'],
+        'wbs-1.5': ['milestone-1.4.2'],
+        'act-1.5.1': ['wbs-1.4'],
         // Project 2 Dependencies
         'act-2.1.2': ['act-2.1.1'],
         'wbs-2.2': ['wbs-2.1'],
@@ -511,12 +533,23 @@ function getDependencies(id: string): string[] {
     return deps[id] || [];
 }
 
-const processedTasks: Task[] = rawTasks.map(task => ({
-  ...task,
-  type: getTaskType(task.id),
-  parentId: getParentId(task.id),
-  dependencies: getDependencies(task.id),
-}));
+const processedTasks: Task[] = rawTasks.map(task => {
+    const isMilestone = task.id.startsWith('milestone-');
+    const parentId = getParentId(task.id);
+    let type: 'EPS' | 'WBS' | 'Activity' = 'Activity';
+    if (isMilestone) {
+        type = 'Activity'; // Treat milestones as a type of activity for structure
+    } else {
+        type = getTaskType(task.id);
+    }
+
+    return {
+        ...task,
+        type: type,
+        parentId: parentId,
+        dependencies: getDependencies(task.id),
+    };
+});
 
 // Create a map and a new array to store the sorted tasks
 const taskMap = new Map(processedTasks.map(task => [task.id, task]));
