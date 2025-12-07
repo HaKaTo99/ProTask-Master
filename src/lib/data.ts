@@ -192,19 +192,20 @@ const rawTasks: Omit<Task, 'type' | 'parentId' | 'dependencies'>[] = [
     startDate: '2026-07-01T00:00:00.000Z',
     endDate: '2027-02-15T00:00:00.000Z',
   },
+  // New Project 2 (1 year duration)
   {
     id: 'eps-2',
-    title: 'Mobile App Refresh 2024',
-    description: 'A 6-month project to redesign and update the mobile application.',
+    title: 'Cloud Migration Initiative 2024',
+    description: 'A 1-year project to migrate on-premise infrastructure to a cloud provider.',
     status: 'To Do',
     priority: 'High',
     startDate: '2024-03-01T00:00:00.000Z',
-    endDate: '2024-08-31T00:00:00.000Z',
+    endDate: '2025-02-28T00:00:00.000Z',
   },
   {
     id: 'wbs-2.1',
-    title: '1.0 UI/UX Redesign',
-    description: 'Redesign of the user interface and experience.',
+    title: '1.0 Analysis & Cloud Provider Selection',
+    description: 'Analyze current infrastructure and select a suitable cloud provider.',
     status: 'To Do',
     priority: 'High',
     startDate: '2024-03-01T00:00:00.000Z',
@@ -212,52 +213,177 @@ const rawTasks: Omit<Task, 'type' | 'parentId' | 'dependencies'>[] = [
   },
   {
     id: 'act-2.1.1',
-    title: '1.1 User Research & Wireframing',
-    description: 'Conduct user research and create new wireframes.',
+    title: '1.1 Infrastructure Audit',
+    description: 'Document current on-premise server configurations and dependencies.',
     status: 'To Do',
     priority: 'High',
-    assignee: teamMembers[0],
+    assignee: teamMembers[4],
     startDate: '2024-03-01T00:00:00.000Z',
     endDate: '2024-04-15T00:00:00.000Z',
   },
   {
     id: 'act-2.1.2',
-    title: '1.2 High-Fidelity Mockups',
-    description: 'Create detailed mockups based on wireframes.',
+    title: '1.2 Vendor Comparison & PoC',
+    description: 'Compare AWS, GCP, and Azure and perform proof-of-concept tests.',
     status: 'To Do',
     priority: 'High',
-    assignee: teamMembers[0],
+    assignee: teamMembers[4],
     startDate: '2024-04-16T00:00:00.000Z',
     endDate: '2024-05-31T00:00:00.000Z',
   },
   {
     id: 'wbs-2.2',
-    title: '2.0 Development & Testing',
-    description: 'Implementation and testing of the new design.',
+    title: '2.0 Migration Phase 1 (Staging)',
+    description: 'Migrate staging and development environments to the selected cloud provider.',
     status: 'To Do',
     priority: 'High',
     startDate: '2024-06-01T00:00:00.000Z',
-    endDate: '2024-08-31T00:00:00.000Z',
+    endDate: '2024-10-31T00:00:00.000Z',
   },
   {
     id: 'act-2.2.1',
-    title: '2.1 Frontend Implementation',
-    description: 'Code the new UI components.',
+    title: '2.1 Setup VPC and Networking',
+    description: 'Configure virtual private cloud, subnets, and security groups.',
     status: 'To Do',
     priority: 'High',
-    assignee: teamMembers[0],
+    assignee: teamMembers[4],
     startDate: '2024-06-01T00:00:00.000Z',
-    endDate: '2024-07-31T00:00:00.000Z',
+    endDate: '2024-07-15T00:00:00.000Z',
   },
   {
     id: 'act-2.2.2',
-    title: '2.2 QA & Bug Fixing',
-    description: 'Test the new app and fix bugs.',
+    title: '2.2 Lift-and-Shift Database Migration',
+    description: 'Migrate databases from on-premise to cloud database services.',
+    status: 'To Do',
+    priority: 'Urgent',
+    assignee: teamMembers[1],
+    startDate: '2024-07-16T00:00:00.000Z',
+    endDate: '2024-09-15T00:00:00.000Z',
+  },
+  {
+    id: 'act-2.2.3',
+    title: '2.3 Deploy Applications to Staging',
+    description: 'Deploy and test applications in the new cloud staging environment.',
+    status: 'To Do',
+    priority: 'High',
+    assignee: teamMembers[3],
+    startDate: '2024-09-16T00:00:00.000Z',
+    endDate: '2024-10-31T00:00:00.000Z',
+  },
+  {
+    id: 'wbs-2.3',
+    title: '3.0 Migration Phase 2 (Production)',
+    description: 'Migrate production environment with minimal downtime.',
+    status: 'To Do',
+    priority: 'Urgent',
+    startDate: '2024-11-01T00:00:00.000Z',
+    endDate: '2025-02-28T00:00:00.000Z',
+  },
+  {
+    id: 'act-2.3.1',
+    title: '3.1 Production Environment Setup',
+    description: 'Replicate and harden the staging setup for production use.',
+    status: 'To Do',
+    priority: 'Urgent',
+    assignee: teamMembers[4],
+    startDate: '2024-11-01T00:00:00.000Z',
+    endDate: '2024-12-15T00:00:00.000Z',
+  },
+  {
+    id: 'milestone-2.3.2',
+    title: 'Production Cutover',
+    description: 'Final switch-over from on-premise to cloud for all live traffic.',
+    status: 'To Do',
+    priority: 'Urgent',
+    startDate: '2025-02-15T00:00:00.000Z',
+    endDate: '2025-02-15T00:00:00.000Z',
+  },
+  {
+    id: 'act-2.3.3',
+    title: '3.2 Post-Migration Monitoring',
+    description: 'Monitor system performance and stability for 2 weeks post-migration.',
+    status: 'To Do',
+    priority: 'High',
+    assignee: teamMembers[3],
+    startDate: '2025-02-16T00:00:00.000Z',
+    endDate: '2025-02-28T00:00:00.000Z',
+  },
+  // New Project (7 months duration)
+  {
+    id: 'eps-6',
+    title: 'Q2-Q3 Marketing Campaign 2025',
+    description: 'A 7-month project for a targeted digital marketing campaign.',
     status: 'To Do',
     priority: 'Medium',
-    assignee: teamMembers[3],
-    startDate: '2024-08-01T00:00:00.000Z',
-    endDate: '2024-08-31T00:00:00.000Z',
+    startDate: '2025-03-01T00:00:00.000Z',
+    endDate: '2025-09-30T00:00:00.000Z',
+  },
+  {
+    id: 'wbs-6.1',
+    title: '1.0 Strategy & Content Creation',
+    description: 'Develop campaign strategy, messaging, and creative assets.',
+    status: 'To Do',
+    priority: 'High',
+    startDate: '2025-03-01T00:00:00.000Z',
+    endDate: '2025-05-15T00:00:00.000Z',
+  },
+  {
+    id: 'act-6.1.1',
+    title: '1.1 Define Target Audience & KPIs',
+    description: 'Define the target audience segments and key performance indicators.',
+    status: 'To Do',
+    priority: 'High',
+    assignee: teamMembers[2],
+    startDate: '2025-03-01T00:00:00.000Z',
+    endDate: '2025-03-31T00:00:00.000Z',
+  },
+  {
+    id: 'act-6.1.2',
+    title: '1.2 Create Ad Creatives & Landing Pages',
+    description: 'Design visuals, write copy, and build dedicated landing pages.',
+    status: 'To Do',
+    priority: 'High',
+    assignee: teamMembers[0],
+    startDate: '2025-04-01T00:00:00.000Z',
+    endDate: '2025-05-15T00:00:00.000Z',
+  },
+  {
+    id: 'wbs-6.2',
+    title: '2.0 Campaign Execution & Monitoring',
+    description: 'Launch and manage the campaign across various channels.',
+    status: 'To Do',
+    priority: 'Medium',
+    startDate: '2025-05-16T00:00:00.000Z',
+    endDate: '2025-08-31T00:00:00.000Z',
+  },
+  {
+    id: 'act-6.2.1',
+    title: '2.1 Launch Social Media & PPC Ads',
+    description: 'Go live with paid advertising campaigns on selected platforms.',
+    status: 'To Do',
+    priority: 'High',
+    assignee: teamMembers[2],
+    startDate: '2025-05-16T00:00:00.000Z',
+    endDate: '2025-08-15T00:00:00.000Z',
+  },
+  {
+    id: 'wbs-6.3',
+    title: '3.0 Performance Analysis & Reporting',
+    description: 'Analyze campaign performance and create a final report.',
+    status: 'To Do',
+    priority: 'Medium',
+    startDate: '2025-09-01T00:00:00.000Z',
+    endDate: '2025-09-30T00:00:00.000Z',
+  },
+  {
+    id: 'act-6.3.1',
+    title: '3.1 Final Report Generation',
+    description: 'Compile all data and generate a comprehensive performance report.',
+    status: 'To Do',
+    priority: 'Medium',
+    assignee: teamMembers[1],
+    startDate: '2025-09-01T00:00:00.000Z',
+    endDate: '2025-09-30T00:00:00.000Z',
   },
   {
     id: 'eps-3',
@@ -469,27 +595,20 @@ function getTaskType(id: string): 'EPS' | 'WBS' | 'Activity' {
 }
 
 function getParentId(id: string): string | null {
-    if (id.startsWith('wbs-') || id.startsWith('milestone-')) {
-        const prefix = id.startsWith('wbs-') ? 'wbs-' : 'milestone-';
-        const parts = id.substring(prefix.length).split('.');
-        if (parts.length > 1) {
-            const parentWbs = parts.slice(0, 2).join('.');
-            // If it's an activity or milestone under a WBS
-            if (id.startsWith('act-') || id.startsWith('milestone-')) {
-                 const epsNum = parts[0];
-                 const wbsNum = parts[1];
-                 return `wbs-${epsNum}.${wbsNum}`;
-            }
-             // If it's a WBS under an EPS
-            const epsNum = parts[0];
-            return `eps-${epsNum}`;
+    const parts = id.split('-');
+    const prefix = parts[0];
+    const rest = parts.slice(1).join('-');
+
+    if (prefix === 'wbs') {
+        const idParts = rest.split('.');
+        if (idParts.length > 1) {
+            return `eps-${idParts[0]}`;
         }
-    }
-     if (id.startsWith('act-')) {
-        const parts = id.split('-')[1].split('.');
-        const epsNum = parts[0];
-        const wbsNum = parts[1];
-        return `wbs-${epsNum}.${wbsNum}`;
+    } else if (prefix === 'act' || prefix === 'milestone') {
+        const idParts = rest.split('.');
+        if (idParts.length > 2) {
+             return `wbs-${idParts[0]}.${idParts[1]}`;
+        }
     }
     return null;
 }
@@ -514,6 +633,11 @@ function getDependencies(id: string): string[] {
         'wbs-2.2': ['wbs-2.1'],
         'act-2.2.1': ['act-2.1.2'],
         'act-2.2.2': ['act-2.2.1'],
+        'act-2.2.3': ['act-2.2.2'],
+        'wbs-2.3': ['wbs-2.2'],
+        'act-2.3.1': ['act-2.2.3'],
+        'milestone-2.3.2': ['act-2.3.1'],
+        'act-2.3.3': ['milestone-2.3.2'],
         // Project 3 Dependencies
         'act-3.1.2': ['act-3.1.1'],
         'wbs-3.2': ['wbs-3.1'],
@@ -529,6 +653,12 @@ function getDependencies(id: string): string[] {
         'wbs-5.2': ['wbs-5.1'],
         'act-5.2.1': ['act-5.1.2'],
         'act-5.2.2': ['act-5.2.1'],
+        // Project 6 Dependencies
+        'act-6.1.2': ['act-6.1.1'],
+        'wbs-6.2': ['wbs-6.1'],
+        'act-6.2.1': ['act-6.1.2'],
+        'wbs-6.3': ['wbs-6.2'],
+        'act-6.3.1': ['act-6.2.1'],
     };
     return deps[id] || [];
 }
