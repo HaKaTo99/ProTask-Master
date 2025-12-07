@@ -1231,6 +1231,7 @@ const GanttChart = () => {
             if (!isOpen) setEditingTask(null);
           }}
           task={editingTask}
+          allTasks={allTasks}
           onSave={(updatedTask) => {
             handleUpdateTask(editingTask.id, updatedTask);
             setEditingTask(null);
@@ -1238,6 +1239,9 @@ const GanttChart = () => {
           onDelete={(taskId) => {
             setAllTasks(allTasks.filter(t => t.id !== taskId));
             setEditingTask(null);
+          }}
+          onUpdateDependencies={(taskId, newDependencies) => {
+            handleUpdateTask(taskId, { dependencies: newDependencies });
           }}
         />
       )}

@@ -15,26 +15,31 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Calendar as CalendarIcon, X } from 'lucide-react';
+import { Calendar as CalendarIcon, Trash2 } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { useEffect, useState, useMemo } from 'react';
 import { format, parseISO, isValid, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 
 interface TaskEditorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task: Task;
+  allTasks: Task[];
   onSave: (updatedTask: Partial<Task>) => void;
   onDelete: (taskId: string) => void;
+  onUpdateDependencies: (taskId: string, newDependencies: string[]) => void;
 }
 
 export function TaskEditorDialog({
   open,
   onOpenChange,
   task,
+  allTasks,
   onSave,
   onDelete,
+  onUpdateDependencies,
 }: TaskEditorDialogProps) {
   const [editedTask, setEditedTask] = useState<Partial<Task>>({});
 
@@ -90,6 +95,32 @@ export function TaskEditorDialog({
 
   const getProgressFromStatus = (status: Task['status']) => statusProgress[status] || 0;
 
+  const predecessors = useMemo(() => {
+    return (editedTask.dependencies || []).map(depId => {
+      return allTasks.find(t => t.id === depId);
+    }).filter(Boolean) as Task[];
+  }, [editedTask.dependencies, allTasks]);
+
+  const successors = useMemo(() => {
+    return allTasks.filter(t => t.dependencies.includes(editedTask.id!));
+  }, [editedTask.id, allTasks]);
+
+  const handleRemovePredecessor = (predecessorId: string) => {
+    const newDependencies = (editedTask.dependencies || []).filter(depId => depId !== predecessorId);
+    onUpdateDependencies(editedTask.id!, newDependencies);
+    setEditedTask(prev => ({...prev, dependencies: newDependencies}));
+  }
+
+  const handleRemoveSuccessor = (successorId: string) => {
+     // This is an indirect action: we must modify the successor task's dependencies
+     const successorTask = allTasks.find(t => t.id === successorId);
+     if (successorTask) {
+       const newSuccessorDeps = successorTask.dependencies.filter(depId => depId !== editedTask.id!);
+       onUpdateDependencies(successorId, newSuccessorDeps);
+     }
+  }
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl p-0">
@@ -100,8 +131,8 @@ export function TaskEditorDialog({
         <Tabs defaultValue="general" className="w-full">
           <TabsList className="px-6 border-b rounded-none justify-start bg-transparent">
             <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="predecessors" disabled>Predecessors</TabsTrigger>
-            <TabsTrigger value="successors" disabled>Successors</TabsTrigger>
+            <TabsTrigger value="predecessors">Predecessors</TabsTrigger>
+            <TabsTrigger value="successors">Successors</TabsTrigger>
             <TabsTrigger value="resources" disabled>Resources</TabsTrigger>
             <TabsTrigger value="advanced" disabled>Advanced</TabsTrigger>
           </TabsList>
@@ -196,6 +227,62 @@ export function TaskEditorDialog({
               </div>
 
             </div>
+          </TabsContent>
+          <TabsContent value="predecessors" className="p-6 min-h-[300px]">
+             <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead className="w-[100px] text-right">Action</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {predecessors.length > 0 ? (
+                        predecessors.map(p => (
+                            <TableRow key={p.id}>
+                                <TableCell className="font-medium">{p.title}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon" className='h-8 w-8 text-muted-foreground' onClick={() => handleRemovePredecessor(p.id)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={2} className="text-center text-muted-foreground">No predecessors</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+             </Table>
+          </TabsContent>
+           <TabsContent value="successors" className="p-6 min-h-[300px]">
+             <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead className="w-[100px] text-right">Action</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {successors.length > 0 ? (
+                        successors.map(s => (
+                            <TableRow key={s.id}>
+                                <TableCell className="font-medium">{s.title}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon" className='h-8 w-8 text-muted-foreground' onClick={() => handleRemoveSuccessor(s.id)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={2} className="text-center text-muted-foreground">No successors</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+             </Table>
           </TabsContent>
         </Tabs>
 
