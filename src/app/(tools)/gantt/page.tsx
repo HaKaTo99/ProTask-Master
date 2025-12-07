@@ -1,3 +1,4 @@
+
 "use client";
 
 import { teamMembers as initialTeamMembers } from "@/lib/data";
@@ -47,7 +48,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Input } from "@/components/ui/input";
 
 
-const initialTasks: Task[] = [
+const initialTasksData: Task[] = [
   { id: 'eps-1', title: 'Proyek Unggulan 2025', description: 'Proyek utama untuk tahun 2025.', status: 'To Do', priority: 'Urgent', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: [], type: 'EPS' },
   { id: 'wbs-1.1', parentId: 'eps-1', title: '1.0 Perencanaan & Desain', description: 'Fase awal untuk riset, perencanaan, dan desain arsitektur.', status: 'To Do', priority: 'High', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-02-28T00:00:00.000Z', dependencies: [], type: 'WBS' },
   { id: 'act-1.1.1', parentId: 'wbs-1.1', title: '1.1 Riset Pasar & Analisis Kebutuhan', description: 'Menganalisis target pasar dan kebutuhan pengguna.', status: 'To Do', priority: 'High', assigneeId: 'user-3', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-01-31T00:00:00.000Z', dependencies: [], type: 'Activity' },
@@ -66,7 +67,6 @@ const initialTasks: Task[] = [
   { id: 'milestone-1.4.2', parentId: 'wbs-1.4', title: 'Peluncuran Produk', description: 'Rilis resmi produk ke publik.', status: 'To Do', priority: 'Urgent', startDate: '2025-12-15T00:00:00.000Z', endDate: '2025-12-15T00:00:00.000Z', dependencies: ['act-1.4.1'], type: 'Activity' },
   { id: 'act-1.4.3', parentId: 'wbs-1.4', title: '4.2 Dukungan Pasca-Peluncuran & Pemantauan', description: 'Memberikan dukungan dan memantau kinerja sistem.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-12-16T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: ['milestone-1.4.2'], type: 'Activity' },
 ];
-
 
 type Node = {
   id: string;
@@ -155,11 +155,12 @@ const GanttChart = () => {
   const [sidebarWidth, setSidebarWidth] = useState(450);
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const ganttContainerRef = useRef<HTMLDivElement>(null);
   const [timeScale, setTimeScale] = useState<TimeScale>("Month");
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
   const [cellWidth, setCellWidth] = useState(40);
   const [collapsed, setCollapsed] = useState(new Set<string>());
-  const [allTasks, setAllTasks] = useState<Task[]>(initialTasks);
+  const [allTasks, setAllTasks] = useState<Task[]>(initialTasksData);
   const [teamMembers] = useState<TeamMember[]>(initialTeamMembers);
   
   const [draggingInfo, setDraggingInfo] = useState<{
@@ -168,6 +169,14 @@ const GanttChart = () => {
     initialX: number;
     initialStartDate: Date;
     initialEndDate: Date;
+  } | null>(null);
+
+  const [newDependency, setNewDependency] = useState<{
+    sourceTaskId: string;
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
   } | null>(null);
 
   const handleUpdateTask = (taskId: string, newTitle: string) => {
@@ -196,6 +205,22 @@ const GanttChart = () => {
       })
     );
   };
+
+  const handleCreateDependency = (sourceId: string, targetId: string) => {
+    setAllTasks(prevTasks => {
+        // Prevent adding self-dependency or duplicate dependency
+        const targetTask = prevTasks.find(t => t.id === targetId);
+        if (!targetTask || targetId === sourceId || targetTask.dependencies.includes(sourceId)) {
+          return prevTasks;
+        }
+
+        return prevTasks.map(task => 
+            task.id === targetId 
+            ? { ...task, dependencies: [...task.dependencies, sourceId] }
+            : task
+        );
+    });
+  }
 
   useEffect(() => {
     // Set the current date only on the client to avoid hydration mismatch
@@ -260,17 +285,19 @@ const GanttChart = () => {
 
         if (validTasks.length === 0) return tasks;
 
+        const projectStartDate = new Date(Math.min(...validTasks.map(t => parseISO(t.startDate).getTime())));
+        
         validTasks.forEach(task => {
             const duration = differenceInDays(parseISO(task.endDate), parseISO(task.startDate)) || 1;
             taskCalculations.set(task.id, { es: 0, ef: 0, ls: Infinity, lf: Infinity, slack: 0, duration });
         });
-
-        const projectStartDate = new Date(Math.min(...validTasks.map(t => parseISO(t.startDate).getTime())));
         
+        // Forward pass
         validTasks.forEach(task => {
             const calc = taskCalculations.get(task.id)!;
             if (task.dependencies.length === 0) {
-                calc.es = differenceInDays(parseISO(task.startDate), projectStartDate);
+                // If no dependencies, early start is its own start date relative to project start
+                 calc.es = differenceInDays(parseISO(task.startDate), projectStartDate);
             } else {
                 const maxEF = Math.max(...task.dependencies.map(depId => taskCalculations.get(depId)?.ef || 0));
                 calc.es = maxEF;
@@ -280,6 +307,7 @@ const GanttChart = () => {
 
         const projectEndDateVal = Math.max(...Array.from(taskCalculations.values()).map(c => c.ef));
         
+        // Backward pass
         const reversedTasks = [...validTasks].reverse();
         reversedTasks.forEach(task => {
             const calc = taskCalculations.get(task.id)!;
@@ -297,7 +325,7 @@ const GanttChart = () => {
         
         const criticalPathTasks = new Set<string>();
         taskCalculations.forEach((calc, taskId) => {
-            if (calc.slack <= 1) { // Allow for small rounding errors
+            if (calc.slack <= 1) { // Allow for small rounding/float errors
                 criticalPathTasks.add(taskId);
             }
         });
@@ -368,6 +396,7 @@ const GanttChart = () => {
       case "Week":
         setCellWidth(20);
         break;
+ax
       case "Month":
         setCellWidth(40);
         break;
@@ -449,10 +478,9 @@ const GanttChart = () => {
         secondaryHeaderDates = eachDayOfInterval(interval);
         totalUnits = secondaryHeaderDates.length;
         
-        const yearsInInterval = eachYearOfInterval(interval);
-        primaryHeader = yearsInInterval.map(yearStart => ({
+        primaryHeader = eachYearOfInterval(interval).map(yearStart => ({
             label: format(yearStart, 'yyyy'),
-            units: differenceInDays(endOfYear(yearStart), yearStart) + 1
+            units: differenceInDays(endOfYear(yearStart), startOfYear(yearStart)) + 1
         }));
         
         secondaryHeader = eachMonthOfInterval(interval).map(monthStart => {
@@ -567,76 +595,101 @@ const GanttChart = () => {
     });
   };
 
-  const handleDragging = useCallback((e: MouseEvent) => {
-    if (!draggingInfo) return;
-
-    const dx = e.clientX - draggingInfo.initialX;
-    let unitsMoved = 0;
+  const handleDependencyDragStart = (e: React.MouseEvent, sourceTaskId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
     
-    unitsMoved = Math.round(dx / cellWidth);
-    
-    let newStartDate = draggingInfo.initialStartDate;
-    let newEndDate = draggingInfo.initialEndDate;
-    let duration = differenceInDays(draggingInfo.initialEndDate, draggingInfo.initialStartDate);
+    if (!ganttContainerRef.current) return;
+    const rect = ganttContainerRef.current.getBoundingClientRect();
+    const startX = e.clientX - rect.left + ganttContainerRef.current.scrollLeft;
+    const startY = e.clientY - rect.top;
 
-    if (timeScale === 'Year') {
-      if (draggingInfo.action === 'move') {
-          newStartDate = addMonths(draggingInfo.initialStartDate, unitsMoved);
-          newEndDate = addMonths(draggingInfo.initialEndDate, unitsMoved);
-      } else if (draggingInfo.action === 'resize-end') {
-          newEndDate = addMonths(draggingInfo.initialEndDate, unitsMoved);
-          if (newEndDate < newStartDate) newEndDate = newStartDate;
-      } else if (draggingInfo.action === 'resize-start') {
-          newStartDate = addMonths(draggingInfo.initialStartDate, unitsMoved);
-          if (newStartDate > newEndDate) newStartDate = newEndDate;
-      }
-    } else {
+    setNewDependency({
+        sourceTaskId,
+        startX,
+        startY,
+        endX: startX,
+        endY: startY,
+    });
+  }
+
+  const handleGlobalMouseMove = useCallback((e: MouseEvent) => {
+    if (draggingInfo) {
+      const dx = e.clientX - draggingInfo.initialX;
+      let unitsMoved = Math.round(dx / cellWidth);
+      
+      let newStartDate = draggingInfo.initialStartDate;
+      let newEndDate = draggingInfo.initialEndDate;
+      let duration = differenceInDays(draggingInfo.initialEndDate, draggingInfo.initialStartDate);
+
+      if (timeScale === 'Year') {
         if (draggingInfo.action === 'move') {
-            newStartDate = addDays(draggingInfo.initialStartDate, unitsMoved);
-            newEndDate = addDays(newStartDate, duration);
+            newStartDate = addMonths(draggingInfo.initialStartDate, unitsMoved);
+            newEndDate = addMonths(draggingInfo.initialEndDate, unitsMoved);
         } else if (draggingInfo.action === 'resize-end') {
-            newEndDate = addDays(draggingInfo.initialEndDate, unitsMoved);
+            newEndDate = addMonths(draggingInfo.initialEndDate, unitsMoved);
             if (newEndDate < newStartDate) newEndDate = newStartDate;
         } else if (draggingInfo.action === 'resize-start') {
-            newStartDate = addDays(draggingInfo.initialStartDate, unitsMoved);
+            newStartDate = addMonths(draggingInfo.initialStartDate, unitsMoved);
             if (newStartDate > newEndDate) newStartDate = newEndDate;
         }
-    }
-
-
-    setAllTasks(prevTasks => prevTasks.map(t => {
-      if (t.id === draggingInfo.task.id) {
-        return {
-          ...t,
-          startDate: newStartDate.toISOString(),
-          endDate: newEndDate.toISOString(),
-        };
+      } else {
+          if (draggingInfo.action === 'move') {
+              newStartDate = addDays(draggingInfo.initialStartDate, unitsMoved);
+              newEndDate = addDays(newStartDate, duration);
+          } else if (draggingInfo.action === 'resize-end') {
+              newEndDate = addDays(draggingInfo.initialEndDate, unitsMoved);
+              if (newEndDate < newStartDate) newEndDate = newStartDate;
+          } else if (draggingInfo.action === 'resize-start') {
+              newStartDate = addDays(draggingInfo.initialStartDate, unitsMoved);
+              if (newStartDate > newEndDate) newStartDate = newEndDate;
+          }
       }
-      return t;
-    }));
-  }, [draggingInfo, cellWidth, timeScale]);
 
-  const handleDragEnd = useCallback(() => {
+      setAllTasks(prevTasks => prevTasks.map(t => {
+        if (t.id === draggingInfo.task.id) {
+          return {
+            ...t,
+            startDate: newStartDate.toISOString(),
+            endDate: newEndDate.toISOString(),
+          };
+        }
+        return t;
+      }));
+    } else if (newDependency && ganttContainerRef.current) {
+        const rect = ganttContainerRef.current.getBoundingClientRect();
+        const endX = e.clientX - rect.left + ganttContainerRef.current.scrollLeft;
+        const endY = e.clientY - rect.top;
+        setNewDependency(prev => prev ? { ...prev, endX, endY } : null);
+    }
+  }, [draggingInfo, cellWidth, timeScale, newDependency]);
+
+  const handleGlobalMouseUp = useCallback(() => {
     if (draggingInfo) {
       setDraggingInfo(null);
     }
-  }, [draggingInfo]);
+    if (newDependency) {
+      setNewDependency(null);
+    }
+  }, [draggingInfo, newDependency]);
   
   useEffect(() => {
-    if (draggingInfo) {
-      document.body.style.cursor = draggingInfo.action === 'move' ? 'grabbing' : 'ew-resize';
-      window.addEventListener('mousemove', handleDragging);
-      window.addEventListener('mouseup', handleDragEnd);
+    const isDragging = !!draggingInfo || !!newDependency;
+    
+    if (isDragging) {
+      document.body.style.cursor = draggingInfo ? (draggingInfo.action === 'move' ? 'grabbing' : 'ew-resize') : 'crosshair';
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
     } else {
       document.body.style.cursor = 'default';
     }
 
     return () => {
-      window.removeEventListener('mousemove', handleDragging);
-      window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
       document.body.style.cursor = 'default';
     };
-  }, [draggingInfo, handleDragging, handleDragEnd]);
+  }, [draggingInfo, newDependency, handleGlobalMouseMove, handleGlobalMouseUp]);
   
   const statusProgress: { [key: string]: number } = {
     'Done': 100,
@@ -740,7 +793,7 @@ const GanttChart = () => {
           <div ref={sidebarRef} className="relative overflow-y-auto bg-card border-r border-border">
             <Table className="relative w-full" style={{tableLayout: 'fixed'}}>
               <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-sm z-10">
-                <TableRow style={{height: `${ROW_HEIGHT_PX}px`}} className="hover:bg-transparent border-b">
+                <TableRow style={{height: `${ROW_HEIGHT_PX * 2}px`}} className="hover:bg-transparent border-b">
                   <TableHead className="w-auto font-bold">Task</TableHead>
                   <TableHead className="w-[100px] font-bold">Start</TableHead>
                   <TableHead className="w-[100px] font-bold">End</TableHead>
@@ -797,7 +850,7 @@ const GanttChart = () => {
           </div>
           
           {/* Timeline Column */}
-          <div className="overflow-x-auto bg-card">
+          <div ref={ganttContainerRef} className="overflow-x-auto bg-card">
           <TooltipProvider>
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
@@ -867,7 +920,7 @@ const GanttChart = () => {
                   </div>
                 )}
                 
-                {/* Dependency Lines */}
+                {/* Dependency Lines & Preview */}
                 <svg width="100%" height="100%" className="absolute top-0 left-0 overflow-visible" style={{ pointerEvents: 'none' }}>
                   <defs>
                     <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
@@ -877,6 +930,7 @@ const GanttChart = () => {
                       <polygon points="0 0, 8 3, 0 6" className="fill-accent" />
                     </marker>
                   </defs>
+                  {/* Existing Dependencies */}
                   {tasks.map((task) => 
                     task.dependencies.map(depId => {
                       const fromNode = nodeMap.get(depId);
@@ -891,8 +945,8 @@ const GanttChart = () => {
                       const toPosition = getTaskPosition(toNode.startDate.toISOString(), toNode.endDate.toISOString());
                       const toX = toPosition.left;
                       
-                      const startPointX = fromX + 4;
-                      const endPointX = toX - 12;
+                      const startPointX = fromX;
+                      const endPointX = toX - 8; // Offset for arrowhead
                       const curve = 30;
 
                       return (
@@ -906,6 +960,18 @@ const GanttChart = () => {
                         />
                       )
                     })
+                  )}
+                  {/* New Dependency Preview Line */}
+                  {newDependency && (
+                    <line
+                      x1={newDependency.startX}
+                      y1={newDependency.startY}
+                      x2={newDependency.endX}
+                      y2={newDependency.endY}
+                      stroke="hsl(var(--primary))"
+                      strokeWidth="2"
+                      strokeDasharray="4 4"
+                    />
                   )}
                 </svg>
 
@@ -974,7 +1040,7 @@ const GanttChart = () => {
                                 }}
                               />
                               
-                              {/* Drag Handles */}
+                              {/* Drag Handles for Resize */}
                               {isDraggable && (
                                 <>
                                   <div 
@@ -1014,8 +1080,16 @@ const GanttChart = () => {
                        {/* Dependency handles */}
                       {isDraggable && (
                         <>
-                          <div className="absolute left-[-6px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-background cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity z-20" />
-                          <div className="absolute right-[-6px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-background cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity z-20" />
+                          <div 
+                            onMouseDown={(e) => handleDependencyDragStart(e, task.id)}
+                            onMouseUp={() => newDependency && handleCreateDependency(newDependency.sourceTaskId, task.id)}
+                            className="absolute left-[-6px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-background cursor-crosshair opacity-0 group-hover:opacity-100 transition-opacity z-30" 
+                          />
+                          <div
+                            onMouseDown={(e) => handleDependencyDragStart(e, task.id)}
+                            onMouseUp={() => newDependency && handleCreateDependency(newDependency.sourceTaskId, task.id)}
+                            className="absolute right-[-6px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-slate-400 border-2 border-background cursor-crosshair opacity-0 group-hover:opacity-100 transition-opacity z-30" 
+                          />
                         </>
                       )}
 
@@ -1033,3 +1107,5 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
+
+    
