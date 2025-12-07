@@ -194,7 +194,7 @@ const GanttChart = () => {
       endDate: parseISO(task.endDate),
       y: index * ROW_HEIGHT_PX + (ROW_HEIGHT_PX / 2),
     }))
-  ), []);
+  ), [tasks]);
   
   const todayOffset = differenceInDays(new Date(), interval.start);
   let todayPositionX = -1;
@@ -253,7 +253,7 @@ const GanttChart = () => {
               </TableHeader>
               <TableBody>
                 {tasks.map((task) => (
-                  <TableRow key={task.id} className="h-14 border-b border-border/50">
+                  <TableRow key={task.id} style={{ height: `${ROW_HEIGHT_PX}px` }} className="border-b border-border/50">
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <span className="font-medium truncate">{task.title}</span>
@@ -352,7 +352,7 @@ const GanttChart = () => {
                   return (
                     <div 
                       key={task.id} 
-                      className="absolute group"
+                      className="absolute group flex items-center"
                       style={{ 
                         top: `${index * ROW_HEIGHT_PX}px`,
                         left: `${left}px`, 
@@ -392,3 +392,4 @@ const GanttChart = () => {
 
 export default GanttChart;
  
+    
