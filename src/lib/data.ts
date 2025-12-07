@@ -1,4 +1,4 @@
-import { TeamMember, Task } from '@/lib/types';
+import { TeamMember } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export const teamMembers: TeamMember[] = [
@@ -38,5 +38,3 @@ export const teamMembers: TeamMember[] = [
     currentWorkload: 6,
   },
 ];
-
-    

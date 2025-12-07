@@ -42,10 +42,11 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import type { Task, TeamMember } from "@/lib/types";
-import { ChevronRight, Diamond, Layers } from "lucide-react";
+import { ChevronRight, Diamond, Layers, Triangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
+import { TaskEditorDialog } from "@/components/gantt/TaskEditorDialog";
 
 
 const initialTasksData: Task[] = [
@@ -182,6 +183,7 @@ const GanttChart = () => {
   const [collapsed, setCollapsed] = useState(new Set<string>());
   const [allTasks, setAllTasks] = useState<Task[]>(initialTasksData);
   const [teamMembers] = useState<TeamMember[]>(initialTeamMembers);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   
   const [draggingInfo, setDraggingInfo] = useState<{
     task: Task;
@@ -200,12 +202,12 @@ const GanttChart = () => {
     endY: number;
   } | null>(null);
 
-  const handleUpdateTask = (taskId: string, newTitle: string) => {
-    setAllTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId ? { ...task, title: newTitle } : task
-      )
-    );
+  const handleUpdateTask = (taskId: string, updatedProperties: Partial<Task>) => {
+      setAllTasks(prevTasks =>
+          prevTasks.map(task =>
+              task.id === taskId ? { ...task, ...updatedProperties } : task
+          )
+      );
   };
   
   const handleUpdateTaskDate = (taskId: string, field: 'startDate' | 'endDate', newDate: string) => {
@@ -653,8 +655,12 @@ const GanttChart = () => {
     
     if (!ganttContainerRef.current) return;
     const rect = ganttContainerRef.current.getBoundingClientRect();
-    const startX = e.clientX - rect.left + ganttContainerRef.current.scrollLeft;
-    const startY = e.clientY - rect.top;
+    const scrollLeft = ganttContainerRef.current.scrollLeft;
+    const scrollTop = ganttContainerRef.current.scrollTop; // We might need this for vertical scroll
+    
+    // Calculate start positions relative to the scrollable container's content
+    const startX = e.clientX - rect.left + scrollLeft;
+    const startY = e.clientY - rect.top + scrollTop;
 
     setNewDependency({
         sourceTaskId,
@@ -664,7 +670,8 @@ const GanttChart = () => {
         endX: startX,
         endY: startY,
     });
-  }
+}
+
 
   const handleGlobalMouseMove = useCallback((e: MouseEvent) => {
     if (draggingInfo) {
@@ -701,7 +708,7 @@ const GanttChart = () => {
     } else if (newDependency && ganttContainerRef.current) {
         const rect = ganttContainerRef.current.getBoundingClientRect();
         const endX = e.clientX - rect.left + ganttContainerRef.current.scrollLeft;
-        const endY = e.clientY - rect.top;
+        const endY = e.clientY - rect.top + ganttContainerRef.current.scrollTop;
         setNewDependency(prev => prev ? { ...prev, endX, endY } : null);
     }
   }, [draggingInfo, getPositionFromDate, getDateFromPosition, newDependency]);
@@ -712,12 +719,11 @@ const GanttChart = () => {
     }
     if (newDependency) {
       const targetElement = e.target as HTMLElement;
-      const targetTaskElement = targetElement.closest('[data-task-id]');
+      const targetTaskElement = targetElement.closest('[data-task-id][data-handle-type]');
       if (targetTaskElement) {
         const targetTaskId = targetTaskElement.getAttribute('data-task-id');
-        const targetHandle = targetElement.getAttribute('data-handle-type');
-        if (targetTaskId && (targetHandle === 'start' || targetHandle === 'end')) {
-          handleCreateDependency(newDependency.sourceTaskId, targetTaskId);
+        if (targetTaskId && newDependency.sourceTaskId !== targetTaskId) {
+            handleCreateDependency(newDependency.sourceTaskId, targetTaskId);
         }
       }
       setNewDependency(null);
@@ -788,6 +794,7 @@ const GanttChart = () => {
   }
 
   return (
+    <>
     <div className="p-4 md:p-8 h-full flex flex-col bg-background">
       <header className="mb-6 flex justify-between items-center gap-4 flex-wrap">
         <div>
@@ -856,7 +863,7 @@ const GanttChart = () => {
                         <span className={`font-medium ${task.type !== 'Activity' ? 'font-bold' : ''}`}>
                           <EditableCell
                             value={task.title}
-                            onSave={(newTitle) => handleUpdateTask(task.id, newTitle)}
+                            onSave={(newTitle) => handleUpdateTask(task.id, { title: newTitle })}
                           />
                         </span>
                       </div>
@@ -1030,6 +1037,7 @@ const GanttChart = () => {
                       stroke="hsl(var(--primary))"
                       strokeWidth="2"
                       strokeDasharray="4 4"
+                      style={{ pointerEvents: 'none' }}
                     />
                   )}
                 </svg>
@@ -1056,7 +1064,8 @@ const GanttChart = () => {
                       <Tooltip key={task.id}>
                         <TooltipTrigger asChild>
                           <div
-                            className="absolute top-0 flex items-center justify-center z-10"
+                            onDoubleClick={() => setEditingTask(task)}
+                            className="absolute top-0 flex items-center justify-center z-10 cursor-pointer"
                             data-task-id={task.id}
                             style={{
                               left: `${left}`-10,
@@ -1076,6 +1085,9 @@ const GanttChart = () => {
                   }
 
                   const isDraggable = task.type === 'Activity' && !isMilestone;
+                  const baselineDeviation = (baselineExists && isValid(parseISO(task.endDate)) && isValid(parseISO(task.baselineEndDate))) 
+                    ? differenceInDays(parseISO(task.endDate), parseISO(task.baselineEndDate)) 
+                    : 0;
 
                   return (
                     <div 
@@ -1093,9 +1105,10 @@ const GanttChart = () => {
                        <Tooltip>
                         <TooltipTrigger asChild>
                            <div
+                              onDoubleClick={() => setEditingTask(task)}
                               onMouseDown={(e) => isDraggable && handleDragStart(e, task, 'move')}
                               className={cn(
-                                "relative h-8 w-full flex items-center rounded-sm text-primary-foreground overflow-hidden shadow-sm z-10",
+                                "relative h-8 w-full flex items-center rounded-sm text-primary-foreground overflow-visible shadow-sm z-10",
                                 isDraggable && "cursor-grab",
                                 draggingInfo?.task.id === task.id && "cursor-grabbing ring-2 ring-primary ring-offset-2 z-20",
                               )}
@@ -1140,6 +1153,23 @@ const GanttChart = () => {
                                   <div className={cn("absolute -right-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent", task.isCritical ? "border-l-[8px] border-l-accent" : "border-l-[8px] border-l-foreground")}></div>
                                 </>
                               )}
+
+                               {baselineExists && baselineDeviation !== 0 && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="absolute -right-2 top-1/2 -translate-y-1/2 z-30">
+                                      <Triangle className={cn("h-3 w-3", baselineDeviation > 0 ? "fill-red-500 text-red-500" : "fill-green-500 text-green-500 rotate-180")} />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>
+                                      {baselineDeviation > 0 
+                                        ? `${baselineDeviation} day(s) behind baseline` 
+                                        : `${Math.abs(baselineDeviation)} day(s) ahead of baseline`}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
                            </div>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -1168,22 +1198,20 @@ const GanttChart = () => {
 
                       {/* Baseline Bar */}
                         {baselineExists && (
-                            <div 
-                                className="absolute bottom-1 h-2 rounded-sm bg-muted-foreground/50"
-                                style={{
-                                    left: `${baselineLeft - left}px`,
-                                    width: `${baselineWidth}px`,
-                                }}
-                            >
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <div className="w-full h-full"></div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Baseline: {`${format(parseISO(task.baselineStartDate!), 'd MMM')} - ${format(parseISO(task.baselineEndDate!), 'd MMM yyyy')}`}</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </div>
+                             <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div 
+                                      className="absolute bottom-1 h-2 rounded-sm bg-muted-foreground/50"
+                                      style={{
+                                          left: `${baselineLeft - left}px`,
+                                          width: `${baselineWidth}px`,
+                                      }}
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Baseline: {`${format(parseISO(task.baselineStartDate!), 'd MMM')} - ${format(parseISO(task.baselineEndDate!), 'd MMM yyyy')}`}</p>
+                                </TooltipContent>
+                            </Tooltip>
                         )}
                     </div>
                   );
@@ -1195,6 +1223,24 @@ const GanttChart = () => {
         </div>
       </Card>
     </div>
+    {editingTask && (
+        <TaskEditorDialog
+          open={!!editingTask}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setEditingTask(null);
+          }}
+          task={editingTask}
+          onSave={(updatedTask) => {
+            handleUpdateTask(editingTask.id, updatedTask);
+            setEditingTask(null);
+          }}
+          onDelete={(taskId) => {
+            setAllTasks(allTasks.filter(t => t.id !== taskId));
+            setEditingTask(null);
+          }}
+        />
+      )}
+    </>
   );
 };
 
