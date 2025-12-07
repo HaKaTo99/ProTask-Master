@@ -183,8 +183,6 @@ const rawTasks: Omit<Task, 'type' | 'parentId' | 'dependencies'>[] = [
     startDate: '2026-07-01T00:00:00.000Z',
     endDate: '2027-02-15T00:00:00.000Z',
   },
-
-  // NEW PROJECT 1: 6-month duration
   {
     id: 'eps-2',
     title: 'Mobile App Refresh 2024',
@@ -242,8 +240,16 @@ const rawTasks: Omit<Task, 'type' | 'parentId' | 'dependencies'>[] = [
     startDate: '2024-06-01T00:00:00.000Z',
     endDate: '2024-07-31T00:00:00.000Z',
   },
-
-  // NEW PROJECT 2: 1-year duration
+  {
+    id: 'act-2.2.2',
+    title: '2.2 QA & Bug Fixing',
+    description: 'Test the new app and fix bugs.',
+    status: 'To Do',
+    priority: 'Medium',
+    assignee: teamMembers[3],
+    startDate: '2024-08-01T00:00:00.000Z',
+    endDate: '2024-08-31T00:00:00.000Z',
+  },
   {
     id: 'eps-3',
     title: 'Customer Data Platform (CDP) Integration',
@@ -273,6 +279,16 @@ const rawTasks: Omit<Task, 'type' | 'parentId' | 'dependencies'>[] = [
     endDate: '2024-08-31T00:00:00.000Z',
   },
   {
+    id: 'act-3.1.2',
+    title: '1.2 Finalize Vendor & Contract',
+    description: 'Finalize the selection and sign the contract.',
+    status: 'To Do',
+    priority: 'High',
+    assignee: teamMembers[2],
+    startDate: '2024-09-01T00:00:00.000Z',
+    endDate: '2024-09-30T00:00:00.000Z',
+  },
+  {
     id: 'wbs-3.2',
     title: '2.0 Implementation',
     description: 'Implement the selected CDP.',
@@ -291,8 +307,16 @@ const rawTasks: Omit<Task, 'type' | 'parentId' | 'dependencies'>[] = [
     startDate: '2024-10-01T00:00:00.000Z',
     endDate: '2025-01-31T00:00:00.000Z',
   },
-
-  // NEW PROJECT 3: 2-year duration
+  {
+    id: 'act-3.2.2',
+    title: '2.2 Full Integration & Testing',
+    description: 'Integrate CDP with all systems and conduct end-to-end testing.',
+    status: 'To Do',
+    priority: 'Medium',
+    assignee: teamMembers[4],
+    startDate: '2025-02-01T00:00:00.000Z',
+    endDate: '2025-06-30T00:00:00.000Z',
+  },
   {
     id: 'eps-4',
     title: 'Global Expansion Initiative',
@@ -322,6 +346,16 @@ const rawTasks: Omit<Task, 'type' | 'parentId' | 'dependencies'>[] = [
     endDate: '2025-06-30T00:00:00.000Z',
   },
   {
+    id: 'act-4.1.2',
+    title: '1.2 Launch Marketing Campaigns (EU)',
+    description: 'Launch marketing campaigns in Germany, France, and UK.',
+    status: 'To Do',
+    priority: 'High',
+    assignee: teamMembers[0],
+    startDate: '2025-07-01T00:00:00.000Z',
+    endDate: '2025-12-31T00:00:00.000Z',
+  },
+  {
     id: 'wbs-4.2',
     title: '2.0 Asia Market Entry',
     description: 'Launch in key Asian markets.',
@@ -340,8 +374,16 @@ const rawTasks: Omit<Task, 'type' | 'parentId' | 'dependencies'>[] = [
     startDate: '2026-01-01T00:00:00.000Z',
     endDate: '2026-07-31T00:00:00.000Z',
   },
-
-  // NEW PROJECT 4: 1.5-year duration
+  {
+    id: 'act-4.2.2',
+    title: '2.2 Establish Local Partnerships',
+    description: 'Form partnerships with local distributors and companies.',
+    status: 'To Do',
+    priority: 'High',
+    assignee: teamMembers[2],
+    startDate: '2026-08-01T00:00:00.000Z',
+    endDate: '2026-12-31T00:00:00.000Z',
+  },
   {
     id: 'eps-5',
     title: 'AI Feature Development',
@@ -371,6 +413,16 @@ const rawTasks: Omit<Task, 'type' | 'parentId' | 'dependencies'>[] = [
     endDate: '2025-10-31T00:00:00.000Z',
   },
   {
+    id: 'act-5.1.2',
+    title: '1.2 Model Training & Evaluation',
+    description: 'Train various models and evaluate their performance.',
+    status: 'To Do',
+    priority: 'Urgent',
+    assignee: teamMembers[1],
+    startDate: '2025-11-01T00:00:00.000Z',
+    endDate: '2026-02-28T00:00:00.000Z',
+  },
+  {
     id: 'wbs-5.2',
     title: '2.0 Feature Integration',
     description: 'Integrate trained models into the main application.',
@@ -388,6 +440,16 @@ const rawTasks: Omit<Task, 'type' | 'parentId' | 'dependencies'>[] = [
     assignee: teamMembers[4],
     startDate: '2026-03-01T00:00:00.000Z',
     endDate: '2026-08-31T00:00:00.000Z',
+  },
+  {
+    id: 'act-5.2.2',
+    title: '2.2 UI Integration & Beta Testing',
+    description: 'Integrate the AI features into the user interface and run a beta test.',
+    status: 'To Do',
+    priority: 'High',
+    assignee: teamMembers[0],
+    startDate: '2026-09-01T00:00:00.000Z',
+    endDate: '2026-11-30T00:00:00.000Z',
   },
 ];
 
@@ -413,26 +475,38 @@ function getParentId(id: string): string | null {
 
 function getDependencies(id: string): string[] {
     const deps: { [key: string]: string[] } = {
+        // Project 1 Dependencies
         'act-1.1.2': ['act-1.1.1'],
         'wbs-1.2': ['wbs-1.1'],
-        'act-1.2.1': ['act-1.2.2'],
+        'act-1.2.1': ['act-1.1.2'],
         'act-1.2.2': ['act-1.2.1'],
         'wbs-1.3': ['wbs-1.2'],
         'act-1.3.1': ['act-1.2.2'],
         'act-1.3.2': ['act-1.3.1'],
         'wbs-1.4': ['wbs-1.3'],
-        'act-1.4.1': ['wbs-1.3'],
+        'act-1.4.1': ['act-1.3.2'],
         'wbs-1.5': ['wbs-1.4'],
         'act-1.5.1': ['act-1.4.1'],
+        // Project 2 Dependencies
         'act-2.1.2': ['act-2.1.1'],
         'wbs-2.2': ['wbs-2.1'],
         'act-2.2.1': ['act-2.1.2'],
+        'act-2.2.2': ['act-2.2.1'],
+        // Project 3 Dependencies
+        'act-3.1.2': ['act-3.1.1'],
         'wbs-3.2': ['wbs-3.1'],
-        'act-3.2.1': ['act-3.1.1'],
+        'act-3.2.1': ['act-3.1.2'],
+        'act-3.2.2': ['act-3.2.1'],
+        // Project 4 Dependencies
+        'act-4.1.2': ['act-4.1.1'],
         'wbs-4.2': ['wbs-4.1'],
-        'act-4.2.1': ['act-4.1.1'],
+        'act-4.2.1': ['act-4.1.2'],
+        'act-4.2.2': ['act-4.2.1'],
+        // Project 5 Dependencies
+        'act-5.1.2': ['act-5.1.1'],
         'wbs-5.2': ['wbs-5.1'],
-        'act-5.2.1': ['act-5.1.1'],
+        'act-5.2.1': ['act-5.1.2'],
+        'act-5.2.2': ['act-5.2.1'],
     };
     return deps[id] || [];
 }
