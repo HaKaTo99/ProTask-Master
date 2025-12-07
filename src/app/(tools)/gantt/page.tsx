@@ -21,6 +21,8 @@ import {
   differenceInYears,
   isSaturday,
   isSunday,
+  addMonths,
+  subMonths,
 } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -54,7 +56,7 @@ const GanttChart = () => {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [timeScale, setTimeScale] = useState<TimeScale>("Month");
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [cellWidth, setCellWidth] = useState(200);
+  const [cellWidth, setCellWidth] = useState(120);
 
   useEffect(() => {
     switch (timeScale) {
@@ -65,7 +67,7 @@ const GanttChart = () => {
         setCellWidth(100);
         break;
       case "Month":
-        setCellWidth(200);
+        setCellWidth(120);
         break;
       case "Year":
         setCellWidth(500);
@@ -130,10 +132,24 @@ const GanttChart = () => {
         break;
       }
       case "Month": {
-        interval = { start: startOfYear(currentDate), end: endOfYear(currentDate) };
+        const currentMonthStart = startOfMonth(currentDate);
+        interval = { start: subMonths(currentMonthStart, 1), end: endOfMonth(addMonths(currentMonthStart, 1)) };
         secondaryHeaderDates = eachMonthOfInterval(interval);
-        totalUnits = 12;
-        primaryHeader = [{ label: format(currentDate, 'yyyy'), units: 12 }];
+        totalUnits = 3;
+        
+        const year = format(currentDate, 'yyyy');
+        const startYear = format(interval.start, 'yyyy');
+        const endYear = format(interval.end, 'yyyy');
+        
+        if (startYear === endYear) {
+            primaryHeader = [{ label: year, units: 3 }];
+        } else {
+            primaryHeader = [
+                { label: startYear, units: 12 - interval.start.getMonth() },
+                { label: endYear, units: interval.end.getMonth() + 1 }
+            ].filter(y => y.units > 0);
+        }
+
         secondaryHeader = secondaryHeaderDates.map(month => ({ label: format(month, 'MMM'), units: 1 }));
         break;
       }
@@ -180,8 +196,13 @@ const GanttChart = () => {
             duration = Math.max(1, differenceInWeeks(taskEndDate, taskStartDate, weekOptions) + 1);
             break;
         case "Month":
-            startOffset = differenceInMonths(taskStartDate, interval.start);
-            duration = differenceInMonths(taskEndDate, taskStartDate) + 1;
+            const monthStart = interval.start;
+            const startOffsetInDays = differenceInDays(taskStartDate, monthStart);
+            const totalDaysInInterval = differenceInDays(interval.end, monthStart);
+            startOffset = (startOffsetInDays / totalDaysInInterval) * totalUnits;
+            
+            const durationInDays = differenceInDays(taskEndDate, taskStartDate) + 1;
+            duration = (durationInDays / totalDaysInInterval) * totalUnits;
             break;
         case "Year":
             startOffset = differenceInYears(taskStartDate, interval.start);
@@ -192,7 +213,7 @@ const GanttChart = () => {
     const left = startOffset * cellWidth;
     const width = duration * cellWidth;
     return { left, width };
-  }, [timeScale, interval, cellWidth]);
+  }, [timeScale, interval, cellWidth, totalUnits]);
 
 
   const startResizing = useCallback((e: React.MouseEvent) => {
@@ -235,8 +256,8 @@ const GanttChart = () => {
       startDate: parseISO(task.startDate),
       endDate: parseISO(task.endDate),
       y: index * ROW_HEIGHT_PX + (ROW_HEIGHT_PX / 2),
-    }))
-  ), []);
+    })).map(node => [node.id, node])
+  ), [tasks]);
   
   const todayOffset = differenceInDays(new Date(), interval.start);
   let todayPositionX = -1;
@@ -295,7 +316,7 @@ const GanttChart = () => {
               </TableHeader>
               <TableBody>
                 {tasks.map((task) => (
-                  <TableRow key={task.id} style={{ height: `${ROW_HEIGHT_PX}px` }} className="border-b border-border/50">
+                  <TableRow key={task.id} style={{ height: `${ROW_HEIGHT_PX}px` }} className="border-b border-border/50 hover:bg-muted/50">
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <span className="font-medium truncate">{task.title}</span>
@@ -320,9 +341,9 @@ const GanttChart = () => {
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
               <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm">
-                <div className="grid" style={{ gridTemplateColumns: primaryHeader.map(g => `${g.units * cellWidth}px`).join(' ') }}>
+                <div className="grid border-b border-border/50" style={{ gridTemplateColumns: primaryHeader.map(g => `${g.units * cellWidth}px`).join(' ') }}>
                   {primaryHeader.map((group, i) => (
-                    <div key={i} className="h-7 flex items-center justify-center border-r border-b border-border/50">
+                    <div key={i} className="h-7 flex items-center justify-center border-r border-border/50">
                       <span className="font-semibold text-sm">{group.label}</span>
                     </div>
                   ))}
@@ -413,9 +434,9 @@ const GanttChart = () => {
                       }}
                     >
                       <div
-                        className="relative h-full w-full flex items-center rounded-sm text-primary-foreground overflow-hidden"
+                        className="relative h-full w-full flex items-center rounded-sm text-primary-foreground overflow-hidden shadow-sm"
                         style={{
-                          backgroundImage: `linear-gradient(to right, hsl(var(--primary)), hsl(var(--primary)/0.9) ${progress}%, hsl(var(--primary)/0.4) ${progress}%)`
+                          backgroundImage: `linear-gradient(to right, hsl(var(--primary)/0.8), hsl(var(--primary)/0.7) ${progress}%, hsl(var(--primary)/0.25) ${progress}%)`
                         }}
                         title={`${task.title} (${format(parseISO(task.startDate), 'MMM d')} - ${format(parseISO(task.endDate), 'MMM d')})`}
                       >
