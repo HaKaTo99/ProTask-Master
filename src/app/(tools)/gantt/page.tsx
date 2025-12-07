@@ -19,10 +19,8 @@ import {
   differenceInMonths,
   eachMonthOfInterval,
   differenceInYears,
-  addDays,
-  addMonths,
-  isLastDayOfMonth,
-  lastDayOfMonth,
+  isSaturday,
+  isSunday,
 } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -61,7 +59,7 @@ const GanttChart = () => {
   useEffect(() => {
     switch (timeScale) {
       case "Day":
-        setCellWidth(60);
+        setCellWidth(40);
         break;
       case "Week":
         setCellWidth(100);
@@ -79,12 +77,14 @@ const GanttChart = () => {
     interval,
     primaryHeader,
     secondaryHeader,
+    secondaryHeaderDates,
     totalUnits,
     timelineWidth,
   } = useMemo(() => {
     let interval;
     let primaryHeader: HeaderGroup[] = [];
     let secondaryHeader: HeaderGroup[] = [];
+    let secondaryHeaderDates: Date[] = [];
     let totalUnits = 0;
 
     const projectStart = new Date(Math.min(...tasks.map(t => parseISO(t.startDate).getTime())));
@@ -93,6 +93,7 @@ const GanttChart = () => {
     switch (timeScale) {
       case "Day": {
         interval = { start: startOfWeek(projectStart), end: endOfWeek(projectEnd) };
+        secondaryHeaderDates = eachDayOfInterval(interval);
         totalUnits = differenceInDays(interval.end, interval.start) + 1;
         const months = eachMonthOfInterval(interval);
         primaryHeader = months.map(monthStart => {
@@ -101,7 +102,7 @@ const GanttChart = () => {
           const daysInMonth = differenceInDays(end, monthStart) + 1;
           return { label: format(monthStart, 'MMMM yyyy'), units: daysInMonth };
         });
-        secondaryHeader = eachDayOfInterval(interval).map(day => ({
+        secondaryHeader = secondaryHeaderDates.map(day => ({
           label: format(day, 'd'),
           units: 1
         }));
@@ -111,6 +112,7 @@ const GanttChart = () => {
         interval = { start: startOfWeek(projectStart, { weekStartsOn: 1 }), end: endOfWeek(projectEnd, { weekStartsOn: 1 }) };
         const weeks = eachWeekOfInterval(interval, { weekStartsOn: 1 });
         totalUnits = weeks.length;
+        secondaryHeaderDates = weeks;
 
         const monthsInInterval = eachMonthOfInterval(interval);
         
@@ -129,18 +131,20 @@ const GanttChart = () => {
       }
       case "Month": {
         interval = { start: startOfYear(currentDate), end: endOfYear(currentDate) };
+        secondaryHeaderDates = eachMonthOfInterval(interval);
         totalUnits = 12;
         primaryHeader = [{ label: format(currentDate, 'yyyy'), units: 12 }];
-        secondaryHeader = eachMonthOfInterval(interval).map(month => ({ label: format(month, 'MMM'), units: 1 }));
+        secondaryHeader = secondaryHeaderDates.map(month => ({ label: format(month, 'MMM'), units: 1 }));
         break;
       }
       case "Year": {
         const startYear = startOfYear(projectStart);
         const endYear = endOfYear(projectEnd);
         interval = { start: startYear, end: endYear };
-        totalUnits = differenceInYears(endYear, startYear) + 1;
+        secondaryHeaderDates = Array.from({ length: differenceInYears(endYear, startYear) + 1 }, (_, i) => addYears(startYear, i));
+        totalUnits = secondaryHeaderDates.length;
         primaryHeader = [{ label: 'Years', units: totalUnits }];
-        secondaryHeader = Array.from({ length: totalUnits }, (_, i) => ({ label: format(addYears(startYear, i), 'yyyy'), units: 1 }));
+        secondaryHeader = secondaryHeaderDates.map(year => ({ label: format(year, 'yyyy'), units: 1 }));
         break;
       }
     }
@@ -149,6 +153,7 @@ const GanttChart = () => {
       interval,
       primaryHeader,
       secondaryHeader,
+      secondaryHeaderDates,
       totalUnits,
       timelineWidth: totalUnits * cellWidth,
     };
@@ -231,7 +236,7 @@ const GanttChart = () => {
       endDate: parseISO(task.endDate),
       y: index * ROW_HEIGHT_PX + (ROW_HEIGHT_PX / 2),
     }))
-  ), [tasks]);
+  ), []);
   
   const todayOffset = differenceInDays(new Date(), interval.start);
   let todayPositionX = -1;
@@ -324,7 +329,7 @@ const GanttChart = () => {
                 </div>
                 <div className="grid" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${cellWidth}px)` }}>
                   {secondaryHeader.map((group, i) => (
-                    <div key={i} className="h-7 flex items-center justify-center border-r border-b border-border/50" style={{ gridColumn: `span ${group.units}` }}>
+                    <div key={i} className={`h-7 flex items-center justify-center border-r border-b border-border/50 ${timeScale === 'Day' && (isSaturday(secondaryHeaderDates[i]) || isSunday(secondaryHeaderDates[i])) ? 'bg-muted/60' : ''}`} style={{ gridColumn: `span ${group.units}` }}>
                       <span className="font-medium text-xs">{group.label}</span>
                     </div>
                   ))}
@@ -336,7 +341,7 @@ const GanttChart = () => {
                  {/* Grid Lines */}
                 <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${cellWidth}px)` }}>
                   {Array.from({ length: totalUnits }).map((_, i) => (
-                    <div key={i} className="border-r border-border/30 h-full"></div>
+                    <div key={i} className={`border-r border-border/30 h-full ${timeScale === 'Day' && secondaryHeaderDates[i] && (isSaturday(secondaryHeaderDates[i]) || isSunday(secondaryHeaderDates[i])) ? 'bg-muted/60' : ''}`}></div>
                   ))}
                 </div>
                  <div className="absolute inset-0 grid" style={{ gridTemplateRows: `repeat(${tasks.length}, ${ROW_HEIGHT_PX}px)` }}>
@@ -437,9 +442,3 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
- 
-    
-
-    
-
-    
