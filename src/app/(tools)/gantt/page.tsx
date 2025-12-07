@@ -243,12 +243,12 @@ const GanttChart = () => {
         <div className="grid flex-1" style={{ gridTemplateColumns: `${sidebarWidth}px 1fr` }}>
           {/* Task Details Column */}
           <div ref={sidebarRef} className="relative overflow-y-auto bg-card border-r border-border">
-            <Table className="relative">
+            <Table className="relative w-full" style={{tableLayout: 'fixed'}}>
               <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-sm z-10">
                 <TableRow className="h-14 hover:bg-transparent border-b">
-                  <TableHead className="min-w-[250px] font-bold">Task</TableHead>
-                  <TableHead className="font-bold">Start</TableHead>
-                  <TableHead className="font-bold">End</TableHead>
+                  <TableHead className="w-auto font-bold">Task</TableHead>
+                  <TableHead className="w-[100px] font-bold">Start</TableHead>
+                  <TableHead className="w-[100px] font-bold">End</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
