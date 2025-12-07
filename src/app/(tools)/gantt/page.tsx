@@ -26,6 +26,7 @@ import {
   eachYearOfInterval,
   getISOWeek,
   addDays,
+  isValid,
 } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -60,39 +61,60 @@ const ROW_HEIGHT_PX = 56; // Corresponds to h-14 in Tailwind
 
 type HeaderGroup = { label: string; units: number };
 
-// New component for inline editing
-const EditableCell = ({ value, onSave }: { value: string, onSave: (newValue: string) => void }) => {
+// Enhanced component for inline editing
+const EditableCell = ({ 
+  value, 
+  onSave,
+  type = 'text' 
+}: { 
+  value: string; 
+  onSave: (newValue: string) => void;
+  type?: 'text' | 'date';
+}) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [text, setText] = useState(value);
+  const [currentValue, setCurrentValue] = useState(value);
 
   const handleDoubleClick = () => {
     setIsEditing(true);
+    if (type === 'date') {
+      // For date, format to YYYY-MM-DD for the input
+      setCurrentValue(format(parseISO(value), 'yyyy-MM-dd'));
+    } else {
+      setCurrentValue(value);
+    }
   };
 
   const handleBlur = () => {
     setIsEditing(false);
-    onSave(text);
+    // For date, convert back to ISO string before saving
+    if (type === 'date' && isValid(parseISO(currentValue))) {
+      onSave(parseISO(currentValue).toISOString());
+    } else if (type === 'text') {
+      onSave(currentValue);
+    } else {
+      // Revert if date is invalid
+      setCurrentValue(value);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setText(e.target.value);
+    setCurrentValue(e.target.value);
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      setIsEditing(false);
-      onSave(text);
+      e.currentTarget.blur(); // Trigger blur to save
     } else if (e.key === 'Escape') {
       setIsEditing(false);
-      setText(value); // Revert changes
+      setCurrentValue(value); // Revert changes
     }
   };
 
   if (isEditing) {
     return (
       <Input
-        type="text"
-        value={text}
+        type={type}
+        value={currentValue}
         onChange={handleChange}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
@@ -102,7 +124,9 @@ const EditableCell = ({ value, onSave }: { value: string, onSave: (newValue: str
     );
   }
 
-  return <div onDoubleClick={handleDoubleClick} className="truncate cursor-pointer">{value}</div>;
+  const displayValue = type === 'date' ? format(parseISO(value), 'd MMM yy') : value;
+
+  return <div onDoubleClick={handleDoubleClick} className="truncate cursor-pointer">{displayValue}</div>;
 };
 
 
@@ -129,6 +153,25 @@ const GanttChart = () => {
       prevTasks.map(task =>
         task.id === taskId ? { ...task, title: newTitle } : task
       )
+    );
+  };
+  
+  const handleUpdateTaskDate = (taskId: string, field: 'startDate' | 'endDate', newDate: string) => {
+    setAllTasks(prevTasks =>
+      prevTasks.map(task => {
+        if (task.id === taskId) {
+          const updatedTask = { ...task, [field]: newDate };
+          // Ensure end date is not before start date
+          if (field === 'startDate' && parseISO(newDate) > parseISO(updatedTask.endDate)) {
+            updatedTask.endDate = newDate;
+          }
+          if (field === 'endDate' && parseISO(newDate) < parseISO(updatedTask.startDate)) {
+            updatedTask.startDate = newDate;
+          }
+          return updatedTask;
+        }
+        return task;
+      })
     );
   };
 
@@ -312,8 +355,12 @@ const GanttChart = () => {
   }, [timeScale, currentDate, cellWidth]);
   
   const getTaskPosition = useCallback((taskStartDateStr: string, taskEndDateStr: string) => {
+    if (!taskStartDateStr || !taskEndDateStr) return { left: 0, width: 0};
     const taskStartDate = parseISO(taskStartDateStr);
     const taskEndDate = parseISO(taskEndDateStr);
+    
+    if (!isValid(taskStartDate) || !isValid(taskEndDate)) return { left: 0, width: 0};
+
 
     if (!interval.start || !interval.end) return { left: 0, width: 0};
 
@@ -574,8 +621,20 @@ const GanttChart = () => {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{format(parseISO(task.startDate), 'd MMM yy')}</TableCell>
-                    <TableCell className="text-muted-foreground">{format(parseISO(task.endDate), 'd MMM yy')}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      <EditableCell
+                        type="date"
+                        value={task.startDate}
+                        onSave={(newDate) => handleUpdateTaskDate(task.id, 'startDate', newDate)}
+                      />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                       <EditableCell
+                        type="date"
+                        value={task.endDate}
+                        onSave={(newDate) => handleUpdateTaskDate(task.id, 'endDate', newDate)}
+                      />
+                    </TableCell>
                     <TableCell className="text-muted-foreground truncate">{task.dependencies.join(', ')}</TableCell>
                     <TableCell className="text-muted-foreground">{`${statusProgress[task.status] || 0}%`}</TableCell>
                   </TableRow>
