@@ -23,4 +23,6 @@ export type Task = {
   type: 'EPS' | 'WBS' | 'Activity';
   parentId?: string | null;
   isCritical?: boolean;
+  baselineStartDate?: string;
+  baselineEndDate?: string;
 };

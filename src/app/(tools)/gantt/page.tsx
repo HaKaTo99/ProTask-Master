@@ -42,7 +42,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import type { Task, TeamMember } from "@/lib/types";
-import { ChevronRight, Diamond } from "lucide-react";
+import { ChevronRight, Diamond, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -78,7 +78,7 @@ type Node = {
 
 type TimeScale = "Day" | "Week" | "Month" | "Year";
 
-const ROW_HEIGHT_PX = 56; // Corresponds to h-14 in Tailwind
+const ROW_HEIGHT_PX = 60; // Increased height for baseline bar
 
 type HeaderGroup = { label: string; units: number };
 
@@ -262,6 +262,17 @@ const GanttChart = () => {
         );
     });
   }
+
+  const setBaseline = () => {
+    setAllTasks(prevTasks => 
+      prevTasks.map(task => ({
+        ...task,
+        baselineStartDate: task.startDate,
+        baselineEndDate: task.endDate,
+      }))
+    );
+  };
+
 
   useEffect(() => {
     // Set the current date only on the client to avoid hydration mismatch
@@ -711,7 +722,7 @@ const GanttChart = () => {
       }
       setNewDependency(null);
     }
-  }, [draggingInfo, newDependency]);
+  }, [draggingInfo, newDependency, handleCreateDependency]);
   
   useEffect(() => {
     const isDragging = !!draggingInfo || !!newDependency;
@@ -786,6 +797,10 @@ const GanttChart = () => {
             </p>
         </div>
         <div className="flex items-center gap-4">
+            <Button variant="outline" size="sm" onClick={setBaseline} className="h-8 px-3">
+              <Layers className="mr-2 h-4 w-4" />
+              Set Baseline
+            </Button>
             <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
                 {(["Day", "Week", "Month", "Year"] as TimeScale[]).map(scale => (
                     <Button 
@@ -1027,6 +1042,15 @@ const GanttChart = () => {
                   const isSummary = task.type !== 'Activity';
                   const isMilestone = task.startDate === task.endDate;
 
+                  // Baseline calculations
+                  let baselineLeft = 0, baselineWidth = 0, baselineExists = false;
+                  if (task.baselineStartDate && task.baselineEndDate) {
+                      const baselinePos = getTaskPosition(task.baselineStartDate, task.baselineEndDate);
+                      baselineLeft = baselinePos.left;
+                      baselineWidth = baselinePos.width;
+                      baselineExists = true;
+                  }
+
                   if (isMilestone) {
                     return (
                       <Tooltip key={task.id}>
@@ -1071,7 +1095,7 @@ const GanttChart = () => {
                            <div
                               onMouseDown={(e) => isDraggable && handleDragStart(e, task, 'move')}
                               className={cn(
-                                "relative h-full w-full flex items-center rounded-sm text-primary-foreground overflow-hidden shadow-sm z-10",
+                                "relative h-8 w-full flex items-center rounded-sm text-primary-foreground overflow-hidden shadow-sm z-10",
                                 isDraggable && "cursor-grab",
                                 draggingInfo?.task.id === task.id && "cursor-grabbing ring-2 ring-primary ring-offset-2 z-20",
                               )}
@@ -1141,6 +1165,26 @@ const GanttChart = () => {
                           />
                         </>
                       )}
+
+                      {/* Baseline Bar */}
+                        {baselineExists && (
+                            <div 
+                                className="absolute bottom-1 h-2 rounded-sm bg-muted-foreground/50"
+                                style={{
+                                    left: `${baselineLeft - left}px`,
+                                    width: `${baselineWidth}px`,
+                                }}
+                            >
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="w-full h-full"></div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Baseline: {`${format(parseISO(task.baselineStartDate!), 'd MMM')} - ${format(parseISO(task.baselineEndDate!), 'd MMM yyyy')}`}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </div>
+                        )}
                     </div>
                   );
                 })}
