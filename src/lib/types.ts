@@ -21,4 +21,5 @@ export type Task = {
   dependencies: string[]; // array of task ids
   type: 'EPS' | 'WBS' | 'Activity';
   parentId?: string | null;
+  isCritical?: boolean;
 };

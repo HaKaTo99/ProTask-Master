@@ -49,6 +49,7 @@ type Node = {
   startDate: Date;
   endDate: Date;
   y: number;
+  isCritical?: boolean;
 };
 
 type TimeScale = "Day" | "Week" | "Month" | "Year";
@@ -312,6 +313,7 @@ const GanttChart = () => {
       startDate: parseISO(task.startDate),
       endDate: parseISO(task.endDate),
       y: index * ROW_HEIGHT_PX + (ROW_HEIGHT_PX / 2),
+      isCritical: task.isCritical,
     })).map(node => [node.id, node])
   ), [tasks]);
   
@@ -408,7 +410,7 @@ const GanttChart = () => {
               </TableHeader>
               <TableBody>
                 {tasks.map((task) => (
-                  <TableRow key={task.id} style={{ height: `${ROW_HEIGHT_PX}px` }} className="border-b border-border/50 hover:bg-muted/50">
+                  <TableRow key={task.id} style={{ height: `${ROW_HEIGHT_PX}px` }} className={cn("border-b border-border/50 hover:bg-muted/50", task.isCritical && "bg-accent/10 hover:bg-accent/20")}>
                     <TableCell className="truncate">
                       <div className="flex items-center gap-1" style={{ paddingLeft: `${getTaskLevel(task) * 20}px` }}>
                         {taskHasChildren(task.id) ? (
@@ -452,7 +454,7 @@ const GanttChart = () => {
                 </div>
                 <div className="grid" style={{ gridTemplateColumns: getGridTemplate(secondaryHeader) }}>
                   {secondaryHeader.map((group, i) => {
-                     let isDayScale = timeScale === 'Day';
+                     let isDayScale = timeScale === 'Day' || timeScale === 'Week' || timeScale === 'Month';
                      let isWeekend = false;
                      if(isDayScale && secondaryHeaderDates[i]) {
                          const day = secondaryHeaderDates[i];
@@ -511,6 +513,9 @@ const GanttChart = () => {
                     <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
                       <polygon points="0 0, 8 3, 0 6" className="fill-muted-foreground/50" />
                     </marker>
+                     <marker id="arrowhead-critical" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+                      <polygon points="0 0, 8 3, 0 6" className="fill-accent" />
+                    </marker>
                   </defs>
                   {tasks.map((task) => 
                     task.dependencies.map(depId => {
@@ -518,6 +523,7 @@ const GanttChart = () => {
                       const toNode = nodeMap.get(task.id);
                       if (!fromNode || !toNode) return null;
 
+                      const isCritical = fromNode.isCritical && toNode.isCritical;
                       const isMilestone = fromNode.startDate.getTime() === fromNode.endDate.getTime();
                       const fromPosition = getTaskPosition(fromNode.startDate.toISOString(), fromNode.endDate.toISOString());
                       const fromX = fromPosition.left + (isMilestone ? cellWidth / 2 : fromPosition.width);
@@ -533,10 +539,10 @@ const GanttChart = () => {
                         <path 
                           key={`${depId}-${task.id}`}
                           d={`M ${startPointX} ${fromNode.y} C ${startPointX + curve} ${fromNode.y}, ${endPointX - curve} ${toNode.y}, ${endPointX} ${toNode.y}`}
-                          stroke="hsl(var(--muted-foreground) / 0.5)"
+                          stroke={isCritical ? "hsl(var(--accent))" : "hsl(var(--muted-foreground) / 0.5)"}
                           strokeWidth="1.5"
                           fill="none"
-                          markerEnd="url(#arrowhead)"
+                          markerEnd={isCritical ? "url(#arrowhead-critical)" : "url(#arrowhead)"}
                         />
                       )
                     })
@@ -562,7 +568,7 @@ const GanttChart = () => {
                               transform: 'translateX(-50%) translateY(-50%)',
                             }}
                           >
-                            <Diamond className="h-6 w-6 text-foreground fill-foreground" />
+                            <Diamond className={cn("h-6 w-6", task.isCritical ? "text-accent fill-accent" : "text-foreground fill-foreground" )} />
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -589,13 +595,18 @@ const GanttChart = () => {
                         <TooltipTrigger asChild>
                            <div
                               className="relative h-full w-full flex items-center rounded-sm text-primary-foreground overflow-hidden shadow-sm cursor-pointer"
-                              style={{
-                                backgroundImage: isSummary 
-                                  ? `linear-gradient(to right, hsl(var(--foreground)/0.8), hsl(var(--foreground)/0.7) ${progress}%, hsl(var(--foreground)/0.25) ${progress}%)`
-                                  : `linear-gradient(to right, hsl(var(--primary)/0.8), hsl(var(--primary)/0.7) ${progress}%, hsl(var(--primary)/0.25) ${progress}%)`
-                              }}
                             >
-                              <div className="flex items-center w-full px-2">
+                             <div 
+                                className="absolute inset-0"
+                                style={{
+                                  background: task.isCritical 
+                                    ? `linear-gradient(to right, hsl(var(--accent)/0.8), hsl(var(--accent)/0.7) ${progress}%, hsl(var(--accent)/0.25) ${progress}%)`
+                                    : (isSummary 
+                                      ? `linear-gradient(to right, hsl(var(--foreground)/0.8), hsl(var(--foreground)/0.7) ${progress}%, hsl(var(--foreground)/0.25) ${progress}%)`
+                                      : `linear-gradient(to right, hsl(var(--primary)/0.8), hsl(var(--primary)/0.7) ${progress}%, hsl(var(--primary)/0.25) ${progress}%)`)
+                                }}
+                              />
+                              <div className="relative flex items-center w-full px-2">
                                 {task.assignee && !isSummary && (
                                     <Avatar className="h-6 w-6 border-2 border-background/50 flex-shrink-0">
                                         <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
@@ -606,8 +617,8 @@ const GanttChart = () => {
                               </div>
                               {isSummary && (
                                 <>
-                                  <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-t-[6px] border-t-transparent border-r-[8px] border-r-foreground border-b-[6px] border-b-transparent"></div>
-                                  <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-t-[6px] border-t-transparent border-l-[8px] border-l-foreground border-b-[6px] border-b-transparent"></div>
+                                  <div className={cn("absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent", task.isCritical ? "border-r-[8px] border-r-accent" : "border-r-[8px] border-r-foreground")}></div>
+                                  <div className={cn("absolute -right-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent", task.isCritical ? "border-l-[8px] border-l-accent" : "border-l-[8px] border-l-foreground")}></div>
                                 </>
                               )}
                            </div>
