@@ -80,6 +80,7 @@ type Node = {
 type TimeScale = "Day" | "Week" | "Month" | "Year";
 
 const ROW_HEIGHT_PX = 60; // Increased height for baseline bar
+const HEADER_HEIGHT_PX = 56;
 
 type HeaderGroup = { label: string; units: number };
 
@@ -840,7 +841,7 @@ const GanttChart = () => {
           <div ref={sidebarRef} className="relative overflow-y-auto bg-card border-r border-border">
             <Table className="relative w-full" style={{tableLayout: 'fixed'}}>
               <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-sm z-10">
-                <TableRow style={{height: `${ROW_HEIGHT_PX * 2}px`}} className="hover:bg-transparent border-b">
+                <TableRow style={{height: `${HEADER_HEIGHT_PX}px`}} className="hover:bg-transparent border-b">
                   <TableHead className="w-auto font-bold">Task</TableHead>
                   <TableHead className="w-[100px] font-bold">Start</TableHead>
                   <TableHead className="w-[100px] font-bold">End</TableHead>
@@ -901,7 +902,7 @@ const GanttChart = () => {
           <TooltipProvider>
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
-              <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm">
+              <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm" style={{height: `${HEADER_HEIGHT_PX}px`}}>
                 <div className="grid border-b border-border/50" style={{ gridTemplateColumns: getGridTemplate(primaryHeader, cellWidth) }}>
                   {primaryHeader.map((group, i) => (
                     <div key={i} className="h-7 flex items-center justify-center border-r border-border/50">
@@ -1245,3 +1246,5 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
+
+    
