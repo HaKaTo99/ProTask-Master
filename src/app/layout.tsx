@@ -6,8 +6,8 @@ import { Toaster } from "@/components/ui/toaster";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "ProTask Master",
-  description: "All-in-one project management toolkit.",
+  title: "ProTask Master: Developer's Project Toolkit",
+  description: "An all-in-one toolkit with Gantt, Kanban, PERT, and more for developers.",
 };
 
 export default function RootLayout({
