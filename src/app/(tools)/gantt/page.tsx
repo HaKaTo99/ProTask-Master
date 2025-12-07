@@ -424,7 +424,8 @@ const GanttChart = () => {
                   <TableHead className="w-auto font-bold">Task</TableHead>
                   <TableHead className="w-[100px] font-bold">Start</TableHead>
                   <TableHead className="w-[100px] font-bold">End</TableHead>
-                  <TableHead className="w-[120px] font-bold">Predecessor</TableHead>
+                  <TableHead className="w-[100px] font-bold">Predecessor</TableHead>
+                  <TableHead className="w-[90px] font-bold">Progress</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -445,6 +446,7 @@ const GanttChart = () => {
                     <TableCell className="text-muted-foreground">{format(parseISO(task.startDate), 'd MMM yy')}</TableCell>
                     <TableCell className="text-muted-foreground">{format(parseISO(task.endDate), 'd MMM yy')}</TableCell>
                     <TableCell className="text-muted-foreground truncate">{task.dependencies.join(', ')}</TableCell>
+                    <TableCell className="text-muted-foreground">{`${statusProgress[task.status] || 0}%`}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
