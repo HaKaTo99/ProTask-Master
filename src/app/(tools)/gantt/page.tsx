@@ -1,5 +1,5 @@
 import { tasks } from "@/lib/data";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import {
   format,
   differenceInDays,
@@ -47,7 +47,7 @@ const GanttChart = () => {
   
   const priorityColors: { [key: string]: string } = {
     Urgent: 'bg-red-500',
-    High: 'bg-accent',
+    High: 'bg-primary',
     Medium: 'bg-yellow-500',
     Low: 'bg-blue-500'
   };
@@ -64,7 +64,7 @@ const GanttChart = () => {
       id: task.id,
       startDate: parseISO(task.startDate),
       endDate: parseISO(task.endDate),
-      y: index * 64 + 32,
+      y: index * 64 + 32, // 64px row height, 32px is half to center the line
     }))
   );
 
@@ -72,16 +72,17 @@ const GanttChart = () => {
     <div className="p-4 md:p-8">
       <h1 className="text-3xl font-bold mb-2 font-headline">Gantt Chart</h1>
       <p className="text-muted-foreground mb-8">
-        Visualize your project timeline with task dependencies.
+        Visualisasikan linimasa proyek dengan dependensi tugas.
       </p>
 
-      <Card>
+      <Card className="overflow-hidden">
         <div className="grid" style={{ gridTemplateColumns: "minmax(350px, 1.2fr) 2fr" }}>
+          {/* Task Details Column */}
           <div className="border-r">
             <Table>
               <TableHeader>
                 <TableRow className="bg-secondary/50">
-                  <TableHead className="h-16">Task Name</TableHead>
+                  <TableHead className="h-16 w-[250px]">Task Name</TableHead>
                   <TableHead>Start</TableHead>
                   <TableHead>End</TableHead>
                 </TableRow>
@@ -108,8 +109,10 @@ const GanttChart = () => {
             </Table>
           </div>
           
+          {/* Timeline Column */}
           <div className="overflow-x-auto">
             <div className="relative" style={{ width: `${totalDays * 50}px` }}>
+              {/* Timeline Header */}
               <div className="sticky top-0 z-20 grid bg-secondary/50 backdrop-blur-sm" style={{ gridTemplateColumns: `repeat(${totalDays}, 50px)` }}>
                 {daysInMonth.map((day, i) => (
                   <div key={i} className="h-16 flex flex-col items-center justify-center border-r border-b">
@@ -154,7 +157,7 @@ const GanttChart = () => {
                 </svg>
 
                 {/* Task Bars */}
-                {tasks.map((task) => {
+                {tasks.map((task, index) => {
                   const { left, width } = getTaskPosition(task.startDate, task.endDate);
                   const progress = statusProgress[task.status] || 0;
                   return (
@@ -185,5 +188,3 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
-
-    
