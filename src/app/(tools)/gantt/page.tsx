@@ -24,6 +24,7 @@ import {
   getDay,
   subYears,
   eachYearOfInterval,
+  getISOWeek,
 } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -162,41 +163,42 @@ const GanttChart = () => {
       }
       case "Week": {
         const yearStart = startOfYear(currentDate);
-        const intervalStart = subMonths(yearStart, 6);
-        const intervalEnd = addMonths(endOfYear(currentDate), 6);
+        const yearEnd = endOfYear(currentDate);
+        interval = { start: yearStart, end: yearEnd };
         
-        const weekOptions = { weekStartsOn: 1 as const };
-        const start = startOfWeek(intervalStart, weekOptions);
-        const end = endOfWeek(intervalEnd, weekOptions);
-        interval = { start, end };
-        
-        const weeks = eachWeekOfInterval({ start, end }, weekOptions);
-        secondaryHeaderDates = weeks;
-        totalUnits = weeks.length;
-        
-        const monthsInInterval = eachMonthOfInterval({ start, end });
-        
+        secondaryHeaderDates = eachDayOfInterval(interval);
+        totalUnits = secondaryHeaderDates.length;
+
+        const monthsInInterval = eachMonthOfInterval({ start: interval.start, end: interval.end });
         primaryHeader = monthsInInterval.map(monthStart => {
-          const firstDayOfMonth = startOfWeek(monthStart, weekOptions);
-          const lastDayOfMonth = endOfWeek(endOfMonth(monthStart), weekOptions);
+          const monthEnd = endOfMonth(monthStart);
+          const daysInMonth = differenceInDays(monthEnd, monthStart) + 1;
+          return { label: format(monthStart, 'MMMM yyyy'), units: daysInMonth };
+        });
         
-          const weeksInMonth = eachWeekOfInterval({
-              start: firstDayOfMonth > start ? firstDayOfMonth : start,
-              end: lastDayOfMonth < end ? lastDayOfMonth : end,
-          }, weekOptions);
+        const weeksInInterval = eachWeekOfInterval(interval, { weekStartsOn: 1 });
+        let weekHeaders: HeaderGroup[] = [];
+        weeksInInterval.forEach(weekStart => {
+            const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+            const daysInWeek = 7;
+            weekHeaders.push({ label: `W${getISOWeek(weekStart)}`, units: daysInWeek });
+        });
 
-          const weeksInMonthCount = weeksInMonth.filter(week => {
-            const weekStart = week;
-            const weekEnd = endOfWeek(week, weekOptions);
-            return (weekStart >= start && weekStart <= end) || (weekEnd >=start && weekEnd <= end);
-          }).length;
-        
-          return { label: format(monthStart, 'MMMM yyyy'), units: weeksInMonthCount };
-        }).filter(g => g.units > 0);
+        // Adjust for partial weeks at start/end of year
+        const firstDayOfYear = startOfYear(currentDate);
+        const firstWeekDay = getDay(firstDayOfYear) === 0 ? 6 : getDay(firstDayOfYear) - 1; // Mon=0, Sun=6
+        if(firstWeekDay > 0) {
+            weekHeaders[0].units = 7 - firstWeekDay;
+        }
 
-        secondaryHeader = weeks.map(week => ({ 
-            label: `W${format(week, 'w')}`, units: 1
-        }));
+        const lastDayOfYear = endOfYear(currentDate);
+        const lastWeekDay = getDay(lastDayOfYear) === 0 ? 6 : getDay(lastDayOfYear) - 1;
+        if(lastWeekDay < 6) {
+            weekHeaders[weekHeaders.length - 1].units = lastWeekDay + 1;
+        }
+
+        secondaryHeader = weekHeaders;
+
         break;
       }
       case "Month": {
@@ -239,13 +241,20 @@ const GanttChart = () => {
       }
     }
 
+    let finalTimelineWidth = 0;
+     if (timeScale === 'Week') {
+      finalTimelineWidth = secondaryHeader.reduce((acc, h) => acc + h.units * cellWidth, 0);
+    } else {
+      finalTimelineWidth = totalUnits * cellWidth;
+    }
+
     return {
       interval,
       primaryHeader,
       secondaryHeader,
       secondaryHeaderDates,
       totalUnits,
-      timelineWidth: totalUnits * cellWidth,
+      timelineWidth: finalTimelineWidth,
     };
   }, [timeScale, currentDate, cellWidth]);
   
@@ -257,19 +266,13 @@ const GanttChart = () => {
 
     switch (timeScale) {
         case "Day":
+        case "Week":
         case "Month":
         {
             const startOffset = differenceInDays(taskStartDate, interval.start);
             const duration = differenceInDays(taskEndDate, taskStartDate) + 1;
             const left = startOffset * cellWidth;
             const width = duration * cellWidth;
-            return { left, width };
-        }
-        case "Week": {
-            const startOffset = differenceInDays(taskStartDate, interval.start);
-            const duration = differenceInDays(taskEndDate, taskStartDate) + 1;
-            const left = (startOffset / 7) * cellWidth;
-            const width = (duration / 7) * cellWidth;
             return { left, width };
         }
         case "Year": {
@@ -331,16 +334,10 @@ const GanttChart = () => {
   if (currentDate && interval.start && interval.end) {
       const today = new Date();
       if (today >= interval.start && today <= interval.end) {
-          if (timeScale === 'Day' || timeScale === 'Month') {
+          if (timeScale === 'Day' || timeScale === 'Month' || timeScale === 'Week') {
               const todayOffset = differenceInDays(today, interval.start);
               if (todayOffset >= 0) {
                  todayPositionX = todayOffset * cellWidth;
-              }
-          }
-          if (timeScale === 'Week') {
-              const todayOffset = differenceInDays(today, interval.start);
-              if (todayOffset >= 0) {
-                todayPositionX = (todayOffset / 7) * cellWidth;
               }
           }
           if (timeScale === 'Year') {
@@ -352,12 +349,8 @@ const GanttChart = () => {
       }
   }
 
-  const getSecondaryHeaderGridTemplate = () => {
-    return secondaryHeader.map(g => `${g.units * cellWidth}px`).join(' ');
-  }
-
-  const getPrimaryHeaderGridTemplate = () => {
-    return primaryHeader.map(g => `${g.units * cellWidth}px`).join(' ');
+ const getGridTemplate = (headerGroups: HeaderGroup[]) => {
+    return headerGroups.map(g => `${g.units * cellWidth}px`).join(' ');
   }
 
   const getTaskLevel = (task: Task) => {
@@ -438,7 +431,7 @@ const GanttChart = () => {
                                 <ChevronRight className={cn("h-4 w-4 transition-transform", !collapsed.has(task.id) && "rotate-90")} />
                             </button>
                         ) : (
-                            <div className="w-4 h-4 mr-1"></div> // Spacer
+                           task.type !== 'EPS' && <div className="w-4 h-4 mr-1"></div> // Spacer
                         )}
                         <span className={`font-medium truncate ${task.type !== 'Activity' ? 'font-bold' : ''}`}>{task.title}</span>
                       </div>
@@ -465,23 +458,28 @@ const GanttChart = () => {
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
               <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm">
-                <div className="grid border-b border-border/50" style={{ gridTemplateColumns: getPrimaryHeaderGridTemplate() }}>
+                <div className="grid border-b border-border/50" style={{ gridTemplateColumns: getGridTemplate(primaryHeader) }}>
                   {primaryHeader.map((group, i) => (
                     <div key={i} className="h-7 flex items-center justify-center border-r border-border/50">
                       <span className="font-semibold text-sm">{group.label}</span>
                     </div>
                   ))}
                 </div>
-                <div className="grid" style={{ gridTemplateColumns: getSecondaryHeaderGridTemplate() }}>
+                <div className="grid" style={{ gridTemplateColumns: getGridTemplate(secondaryHeader) }}>
                   {secondaryHeader.map((group, i) => {
                     let isWeekend = false;
-                    const dateIndex = timeScale === 'Week' ? i * 7 : i;
-                    if ((timeScale === 'Day' || timeScale === 'Month') && secondaryHeaderDates[dateIndex]) {
-                      const currentDateHeader = secondaryHeaderDates[dateIndex];
+                    const isWeekly = timeScale === 'Week';
+                    // The secondary header for weekly is not day-based, so weekend logic won't apply here.
+                    // The shading is handled in the grid lines below which are always day-based for Week view.
+                    if (!isWeekly && secondaryHeaderDates[i]) {
+                      const currentDateHeader = secondaryHeaderDates[i];
                       isWeekend = isSaturday(currentDateHeader) || isSunday(currentDateHeader);
                     }
                     return (
-                      <div key={i} className={`h-7 flex items-center justify-center border-r border-b border-border/50 ${isWeekend && timeScale !== 'Week' ? 'bg-muted/60' : ''}`}>
+                      <div key={i} className={cn(
+                        "h-7 flex items-center justify-center border-r border-b border-border/50",
+                         isWeekend && 'bg-muted/60'
+                      )}>
                         <span className="font-medium text-xs">{group.label}</span>
                       </div>
                     )
@@ -492,21 +490,20 @@ const GanttChart = () => {
               {/* Timeline Content */}
               <div className="relative" style={{ height: `${tasks.length * ROW_HEIGHT_PX}px` }}>
                  {/* Grid Lines */}
-                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: getSecondaryHeaderGridTemplate() }}>
-                  {secondaryHeader.map((_, i) => {
+                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: timeScale === 'Year' ? getGridTemplate(secondaryHeader) : `repeat(${totalUnits}, ${cellWidth}px)` }}>
+                  { (timeScale === 'Year' ? secondaryHeader : secondaryHeaderDates).map((_, i) => {
                      let isWeekend = false;
-                      const dateIndex = timeScale === 'Week' ? i * 7 : i;
-                      if ((timeScale === 'Day' || timeScale === 'Month') && secondaryHeaderDates[dateIndex]) {
-                        const day = secondaryHeaderDates[dateIndex];
-                        isWeekend = isSaturday(day) || isSunday(day);
-                      } else if (timeScale === 'Week') {
-                          // For week view, we shade the whole block if it contains a weekend.
-                          // This implementation shades the background based on the header logic.
-                          // A more precise way would be to check days within the week.
-                          // For now, let's keep it simple.
+                      if (timeScale === 'Day' || timeScale === 'Month' || timeScale === 'Week') {
+                        const day = secondaryHeaderDates[i];
+                        if (day) {
+                          isWeekend = isSaturday(day) || isSunday(day);
+                        }
                       }
                     return (
-                      <div key={i} className={`border-r border-border/30 h-full ${isWeekend && timeScale !== 'Week' ? 'bg-muted/60' : ''}`}></div>
+                      <div key={i} className={cn(
+                          'border-r border-border/30 h-full',
+                          isWeekend && 'bg-muted/60'
+                      )}></div>
                     )
                   })}
                 </div>
