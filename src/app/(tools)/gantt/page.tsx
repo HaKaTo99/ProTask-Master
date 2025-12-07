@@ -47,10 +47,10 @@ const GanttChart = () => {
   };
   
   const priorityColors: { [key: string]: string } = {
-    Urgent: 'bg-red-500',
-    High: 'bg-orange-500',
-    Medium: 'bg-yellow-400',
-    Low: 'bg-blue-500'
+    Urgent: 'bg-red-500 hover:bg-red-600',
+    High: 'bg-orange-400 hover:bg-orange-500',
+    Medium: 'bg-blue-500 hover:bg-blue-600',
+    Low: 'bg-green-500 hover:bg-green-600'
   };
 
   const statusProgress: { [key: string]: number } = {
@@ -65,45 +65,41 @@ const GanttChart = () => {
       id: task.id,
       startDate: parseISO(task.startDate),
       endDate: parseISO(task.endDate),
-      y: index * 64 + 32, // 64px row height, 32px is half to center the line
+      y: index * 56 + 28, // 56px row height, 28px is half to center the line
     }))
   );
 
   return (
-    <div className="p-4 md:p-8">
-      <h1 className="text-3xl font-bold mb-2 font-headline">Gantt Chart</h1>
-      <p className="text-muted-foreground mb-8">
-        Visualisasikan linimasa proyek dengan dependensi tugas.
-      </p>
+    <div className="p-4 md:p-8 h-full flex flex-col">
+      <header className="mb-6">
+        <h1 className="text-3xl font-bold font-headline">Gantt Chart</h1>
+        <p className="text-muted-foreground mt-1">
+          Visualisasikan linimasa proyek dengan dependensi tugas yang interaktif.
+        </p>
+      </header>
 
-      <Card className="overflow-hidden">
-        <div className="grid" style={{ gridTemplateColumns: "minmax(350px, 1.2fr) 2fr" }}>
+      <Card className="overflow-hidden flex-1 flex flex-col">
+        <div className="grid flex-1" style={{ gridTemplateColumns: "minmax(350px, 1.2fr) 2fr" }}>
           {/* Task Details Column */}
-          <div className="border-r">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-secondary/50">
-                  <TableHead className="h-16 w-[250px]">Task Name</TableHead>
-                  <TableHead>Start</TableHead>
-                  <TableHead>End</TableHead>
+          <div className="border-r overflow-y-auto">
+            <Table className="relative">
+              <TableHeader className="sticky top-0 bg-secondary/80 backdrop-blur-sm z-10">
+                <TableRow>
+                  <TableHead className="h-14 w-[250px] font-bold">Task</TableHead>
+                  <TableHead className="font-bold">Start Date</TableHead>
+                  <TableHead className="font-bold">End Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tasks.map((task) => (
-                  <TableRow key={task.id} className="h-16">
+                  <TableRow key={task.id} className="h-14">
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        {task.assignee?.avatarUrl && (
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
-                            <AvatarFallback>{task.assignee.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                        )}
                         <span className="font-medium truncate">{task.title}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{format(parseISO(task.startDate), 'MMM d')}</TableCell>
-                    <TableCell className="text-muted-foreground">{format(parseISO(task.endDate), 'MMM d')}</TableCell>
+                    <TableCell className="text-muted-foreground">{format(parseISO(task.startDate), 'MMM d, yyyy')}</TableCell>
+                    <TableCell className="text-muted-foreground">{format(parseISO(task.endDate), 'MMM d, yyyy')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -112,11 +108,11 @@ const GanttChart = () => {
           
           {/* Timeline Column */}
           <div className="overflow-x-auto">
-            <div className="relative" style={{ width: `${totalDays * 50}px` }}>
+            <div className="relative" style={{ width: `${totalDays * 60}px` }}>
               {/* Timeline Header */}
-              <div className="sticky top-0 z-20 grid bg-secondary/50 backdrop-blur-sm" style={{ gridTemplateColumns: `repeat(${totalDays}, 50px)` }}>
+              <div className="sticky top-0 z-20 grid bg-secondary/80 backdrop-blur-sm" style={{ gridTemplateColumns: `repeat(${totalDays}, 60px)` }}>
                 {daysInMonth.map((day, i) => (
-                  <div key={i} className="h-16 flex flex-col items-center justify-center border-r border-b">
+                  <div key={i} className="h-14 flex flex-col items-center justify-center border-r border-b">
                     <span className="text-xs text-muted-foreground">{format(day, 'E')}</span>
                     <span className="font-bold text-lg">{format(day, 'd')}</span>
                   </div>
@@ -127,8 +123,8 @@ const GanttChart = () => {
                 {/* Dependency Lines */}
                 <svg width="100%" height="100%" className="absolute top-0 left-0 overflow-visible" style={{ pointerEvents: 'none' }}>
                   <defs>
-                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto" markerUnits="strokeWidth">
-                      <polygon points="0 0, 10 3.5, 0 7" fill="hsl(var(--primary))" />
+                    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+                      <polygon points="0 0, 8 3, 0 6" className="fill-primary" />
                     </marker>
                   </defs>
                   {tasks.map((task) => 
@@ -138,17 +134,20 @@ const GanttChart = () => {
                       if (!fromNode || !toNode) return null;
 
                       const fromPosition = getTaskPosition(fromNode.startDate.toISOString(), fromNode.endDate.toISOString());
-                      const fromX = (fromPosition.left + fromPosition.width) / 100 * (totalDays * 50);
+                      const fromX = (fromPosition.left + fromPosition.width) / 100 * (totalDays * 60);
 
                       const toPosition = getTaskPosition(toNode.startDate.toISOString(), toNode.endDate.toISOString());
-                      const toX = toPosition.left / 100 * (totalDays * 50);
+                      const toX = toPosition.left / 100 * (totalDays * 60);
+                      
+                      const startPointX = fromX - 1; // exit from the very end of the bar
+                      const endPointX = toX - 8; // arrive before the marker
 
                       return (
                         <path 
                           key={`${depId}-${task.id}`}
-                          d={`M ${fromX} ${fromNode.y} H ${fromX + 20} V ${toNode.y} H ${toX - 8}`}
+                          d={`M ${startPointX} ${fromNode.y} H ${startPointX + 15} V ${toNode.y} H ${endPointX}`}
                           stroke="hsl(var(--primary))"
-                          strokeWidth="2"
+                          strokeWidth="1.5"
                           fill="none"
                           markerEnd="url(#arrowhead)"
                         />
@@ -157,25 +156,39 @@ const GanttChart = () => {
                   )}
                 </svg>
 
-                {/* Task Bars */}
-                {tasks.map((task) => {
+                {/* Task Rows and Bars */}
+                {tasks.map((task, index) => {
                   const { left, width } = getTaskPosition(task.startDate, task.endDate);
                   const progress = statusProgress[task.status] || 0;
                   return (
-                    <div key={task.id} className="relative h-16 border-b flex items-center pr-2" style={{ paddingLeft: `calc(${left}% + 8px)` }}>
+                    <div key={task.id} className="relative h-14 border-b flex items-center pr-2 group/row">
+                      {/* The bar container */}
                       <div
-                        className="absolute h-10 rounded-md text-white text-xs flex items-center justify-between px-2 truncate transition-all duration-300 group"
-                        style={{ left: `${left}%`, width: `calc(${width}% - 1px)`, minWidth: '20px' }}
+                        className="absolute h-8 flex items-center transition-all duration-200"
+                        style={{ left: `${left}%`, width: `${width}%`}}
                         title={`${task.title} (${format(parseISO(task.startDate), 'MMM d')} - ${format(parseISO(task.endDate), 'MMM d')})`}
                       >
-                         <div className={`absolute inset-0 rounded-md ${priorityColors[task.priority]} opacity-80`}></div>
-                         <div 
-                           className="absolute inset-y-0 left-0 bg-black/20 rounded-md"
-                           style={{ width: `${progress}%`}}
-                         ></div>
-                         <span className="relative truncate text-primary-foreground font-medium z-10">{task.title}</span>
-                         <Badge variant="secondary" className="relative z-10 ml-2 group-hover:opacity-100 opacity-0 transition-opacity">{progress}%</Badge>
+                         <div className={`absolute inset-0 rounded-sm transition-colors ${priorityColors[task.priority]}`}>
+                            {/* Progress Fill */}
+                            <div 
+                              className="absolute inset-y-0 left-0 bg-black/20 rounded-l-sm"
+                              style={{ width: `${progress}%`}}
+                            ></div>
+                         </div>
+                         <span className="relative truncate text-white font-medium text-xs z-10 ml-2">{task.title}</span>
                       </div>
+                      
+                      {task.assignee && (
+                        <div 
+                          className="absolute flex items-center transition-all duration-200" 
+                          style={{ left: `calc(${left}% + ${width}% + 8px)` }}
+                        >
+                            <Avatar className="h-7 w-7 border-2 border-white">
+                                <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
+                                <AvatarFallback>{task.assignee.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
