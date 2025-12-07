@@ -2,7 +2,7 @@ import { TeamMember, Task } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { differenceInDays, parseISO, addDays } from 'date-fns';
 
-const teamMembers: TeamMember[] = [
+export const teamMembers: TeamMember[] = [
   {
     id: 'user-1',
     name: 'Alex Johnson',
@@ -40,7 +40,7 @@ const teamMembers: TeamMember[] = [
   },
 ];
 
-const rawTasksData: Omit<Task, 'type' | 'parentId' | 'dependencies'>[] = [
+const rawTasksData: Omit<Task, 'type' | 'parentId' | 'dependencies' | 'isCritical'>[] = [
   // EPS - Proyek Unggulan 2025
   {
     id: 'eps-1',
@@ -265,77 +265,6 @@ function getDependencies(id: string): string[] {
     return deps[id] || [];
 }
 
-function calculateCriticalPath(tasks: Task[]): Task[] {
-  const taskMap = new Map(tasks.map(task => [task.id, task]));
-  const activityTasks = tasks.filter(t => t.type === 'Activity');
-  const taskCalculations = new Map<string, { es: Date, ef: Date, ls: Date, lf: Date, slack: number, duration: number }>();
-
-  // Initialize calculations
-  activityTasks.forEach(task => {
-    const duration = differenceInDays(parseISO(task.endDate), parseISO(task.startDate)) + 1;
-    taskCalculations.set(task.id, {
-      es: new Date(0),
-      ef: new Date(0),
-      ls: new Date(Infinity),
-      lf: new Date(Infinity),
-      slack: 0,
-      duration
-    });
-  });
-
-  // Forward pass: ES and EF
-  const sortedTasks = [...activityTasks].sort((a,b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime());
-  
-  sortedTasks.forEach(task => {
-    const calc = taskCalculations.get(task.id)!;
-    if (task.dependencies.length === 0) {
-      calc.es = parseISO(task.startDate);
-    } else {
-      const maxEF = new Date(Math.max(...task.dependencies.map(depId => {
-        const depCalc = taskCalculations.get(depId);
-        return depCalc ? depCalc.ef.getTime() : 0;
-      })));
-      calc.es = addDays(maxEF, 1);
-    }
-    calc.ef = addDays(calc.es, calc.duration - 1);
-  });
-  
-  // Backward pass: LS and LF
-  const projectEndDate = new Date(Math.max(...Array.from(taskCalculations.values()).map(c => c.ef.getTime())));
-
-  const reversedTasks = [...sortedTasks].reverse();
-  reversedTasks.forEach(task => {
-    const calc = taskCalculations.get(task.id)!;
-    const successors = activityTasks.filter(t => t.dependencies.includes(task.id));
-
-    if (successors.length === 0) {
-      calc.lf = projectEndDate;
-    } else {
-      const minLS = new Date(Math.min(...successors.map(s => {
-        const sCalc = taskCalculations.get(s.id)!;
-        return sCalc.ls.getTime();
-      })));
-      calc.lf = addDays(minLS, -1);
-    }
-    calc.ls = addDays(calc.lf, -calc.duration + 1);
-    calc.slack = differenceInDays(calc.lf, calc.ef);
-  });
-  
-  // Mark critical tasks
-  const criticalPathTasks = new Set<string>();
-  taskCalculations.forEach((calc, taskId) => {
-    if (calc.slack <= 0) { // Using <= 0 to be safe
-      criticalPathTasks.add(taskId);
-    }
-  });
-
-  return tasks.map(task => ({
-    ...task,
-    isCritical: criticalPathTasks.has(task.id),
-  }));
-}
-
-
 const baseTasks: Task[] = rawTasksData.map(task => {
     const isMilestone = task.id.startsWith('milestone-');
     const parentId = getParentId(task.id);
@@ -351,8 +280,90 @@ const baseTasks: Task[] = rawTasksData.map(task => {
         type: type,
         parentId: parentId,
         dependencies: getDependencies(task.id),
+        isCritical: false, // Default value
     };
 });
+
+function calculateCriticalPath(tasks: Task[]): Task[] {
+  const taskMap = new Map(tasks.map(task => [task.id, { ...task }]));
+  const taskCalculations = new Map<string, { es: number; ef: number; ls: number; lf: number; slack: number; duration: number }>();
+
+  // Initialize calculations
+  tasks.forEach(task => {
+    const duration = differenceInDays(parseISO(task.endDate), parseISO(task.startDate)) || 1;
+    taskCalculations.set(task.id, {
+      es: 0,
+      ef: 0,
+      ls: Infinity,
+      lf: Infinity,
+      slack: 0,
+      duration,
+    });
+  });
+
+  // Forward pass: Calculate Early Start (ES) and Early Finish (EF)
+  tasks.forEach(task => {
+    const calc = taskCalculations.get(task.id)!;
+    if (task.dependencies.length === 0) {
+      calc.es = 0;
+    } else {
+      const maxEF = Math.max(...task.dependencies.map(depId => taskCalculations.get(depId)?.ef || 0));
+      calc.es = maxEF;
+    }
+    calc.ef = calc.es + calc.duration;
+  });
+
+  // Find project end date
+  const projectEndDate = Math.max(...Array.from(taskCalculations.values()).map(c => c.ef));
+
+  // Backward pass: Calculate Late Start (LS) and Late Finish (LF)
+  const reversedTasks = [...tasks].reverse();
+  reversedTasks.forEach(task => {
+    const calc = taskCalculations.get(task.id)!;
+    const successors = tasks.filter(t => t.dependencies.includes(task.id));
+
+    if (successors.length === 0) {
+      calc.lf = projectEndDate;
+    } else {
+      const minLS = Math.min(...successors.map(s => taskCalculations.get(s.id)?.ls || Infinity));
+      calc.lf = minLS;
+    }
+    calc.ls = calc.lf - calc.duration;
+    calc.slack = calc.ls - calc.es;
+  });
+
+  // Mark critical tasks
+  const criticalPathTasks = new Set<string>();
+  taskCalculations.forEach((calc, taskId) => {
+    if (calc.slack <= 0) {
+      criticalPathTasks.add(taskId);
+    }
+  });
+
+  return tasks.map(task => {
+      const isCritical = criticalPathTasks.has(task.id);
+      let currentTask = task;
+      let parentId = currentTask.parentId;
+      let isChildOfCritical = false;
+
+      // Check if any ancestor is critical
+      while(parentId) {
+          if (criticalPathTasks.has(parentId)) {
+              isChildOfCritical = true;
+              break;
+          }
+          const parentTask = taskMap.get(parentId);
+          parentId = parentTask?.parentId;
+      }
+      
+      // A task is marked as critical if it is on the path OR if its parent is.
+      // This helps in styling the summary bars correctly.
+      return {
+          ...task,
+          isCritical: isCritical || isChildOfCritical,
+      }
+  });
+}
 
 
 const tasksWithCriticalPath = calculateCriticalPath(baseTasks);
