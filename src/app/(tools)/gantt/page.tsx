@@ -24,6 +24,7 @@ import {
   addMonths,
   subMonths,
   eachYearOfInterval,
+  getDay,
 } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -129,14 +130,14 @@ const GanttChart = () => {
 
         const weeksInInterval = eachWeekOfInterval({start, end}, weekOptions);
 
-        const yearsInInterval = eachYearOfInterval({ start, end });
+        const monthsInInterval = eachMonthOfInterval({ start, end });
         
-        primaryHeader = yearsInInterval.map(yearStart => {
-            const yearEnd = endOfYear(yearStart);
-            const firstDay = yearStart > start ? yearStart : start;
-            const lastDay = yearEnd < end ? yearEnd : end;
-            const weeksInYear = differenceInWeeks(lastDay, firstDay, weekOptions) +1;
-            return { label: format(yearStart, 'yyyy'), units: weeksInYear };
+        primaryHeader = monthsInInterval.map(monthStart => {
+          const monthEnd = endOfMonth(monthStart);
+          const firstDay = monthStart > start ? monthStart : start;
+          const lastDay = monthEnd < end ? monthEnd : end;
+          const daysInMonth = differenceInDays(lastDay, firstDay) + 1;
+          return { label: format(monthStart, 'MMMM yyyy'), units: daysInMonth };
         }).filter(group => group.units > 0);
         
         secondaryHeader = weeksInInterval.map(week => ({ 
@@ -377,7 +378,7 @@ const GanttChart = () => {
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
               <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm">
-                <div className="grid border-b border-border/50" style={{ gridTemplateColumns: primaryHeader.map(g => `${g.units * (timeScale === 'Week' ? 7 : 1) * cellWidth}px`).join(' ') }}>
+                <div className="grid border-b border-border/50" style={{ gridTemplateColumns: primaryHeader.map(g => `${g.units * cellWidth}px`).join(' ') }}>
                   {primaryHeader.map((group, i) => (
                     <div key={i} className="h-7 flex items-center justify-center border-r border-border/50">
                       <span className="font-semibold text-sm">{group.label}</span>
@@ -399,14 +400,16 @@ const GanttChart = () => {
               {/* Timeline Content */}
               <div className="relative" style={{ height: `${tasks.length * ROW_HEIGHT_PX}px` }}>
                  {/* Grid Lines */}
-                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: timeScale === 'Week' ? secondaryHeader.map(g => `${g.units * cellWidth}px`).join(' ') : `repeat(${totalUnits}, ${cellWidth}px)` }}>
-                  {Array.from({ length: timeScale === 'Week' ? secondaryHeader.length : totalUnits }).map((_, i) => {
+                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${cellWidth}px)` }}>
+                  {Array.from({ length: totalUnits }).map((_, i) => {
                      let isWeekend = false;
                       if (timeScale === 'Day' && secondaryHeaderDates[i]) {
                         isWeekend = isSaturday(secondaryHeaderDates[i]) || isSunday(secondaryHeaderDates[i]);
                       }
-                      if (timeScale === 'Week' && secondaryHeaderDates[i * 7]) {
-                        // For week view we don't highlight individual cells
+                      if (timeScale === 'Week') {
+                          const dayIndex = getDay(interval.start) === 0 ? i - 1 : i;
+                          const day = (dayIndex + (getDay(interval.start) -1)) % 7;
+                          if (day === 5 || day === 6) isWeekend = true;
                       }
                     return (
                       <div key={i} className={`border-r border-border/30 h-full ${isWeekend ? 'bg-muted/60' : ''}`}></div>
