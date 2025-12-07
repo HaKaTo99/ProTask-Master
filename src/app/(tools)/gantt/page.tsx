@@ -17,7 +17,6 @@ import {
   endOfYear,
   differenceInMonths,
   eachMonthOfInterval,
-  differenceInYears,
   isSaturday,
   isSunday,
   addMonths,
@@ -60,9 +59,14 @@ const GanttChart = () => {
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [timeScale, setTimeScale] = useState<TimeScale>("Month");
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState<Date | null>(null);
   const [cellWidth, setCellWidth] = useState(40);
   const [collapsed, setCollapsed] = useState(new Set<string>());
+
+  useEffect(() => {
+    // Set the current date only on the client to avoid hydration mismatch
+    setCurrentDate(new Date());
+  }, []);
 
   const toggleCollapse = (taskId: string) => {
     setCollapsed(prev => {
@@ -123,6 +127,10 @@ const GanttChart = () => {
     totalUnits,
     timelineWidth,
   } = useMemo(() => {
+    if (!currentDate) {
+      return { interval: { start: new Date(), end: new Date() }, primaryHeader: [], secondaryHeader: [], secondaryHeaderDates: [], totalUnits: 0, timelineWidth: 0 };
+    }
+
     let interval: { start: Date, end: Date };
     let primaryHeader: HeaderGroup[] = [];
     let secondaryHeader: HeaderGroup[] = [];
@@ -180,21 +188,21 @@ const GanttChart = () => {
         break;
       }
       case "Month": {
-        const yearStart = startOfYear(currentDate);
-        const yearEnd = endOfYear(currentDate);
-        interval = { start: yearStart, end: yearEnd };
+        const quarterStart = startOfMonth(subMonths(currentDate, 1));
+        const quarterEnd = endOfMonth(addMonths(currentDate, 1));
+        interval = { start: quarterStart, end: quarterEnd };
 
         secondaryHeaderDates = eachDayOfInterval(interval);
         totalUnits = secondaryHeaderDates.length;
         
-        primaryHeader = eachYearOfInterval(interval).map(yearStart => ({
-          label: format(yearStart, 'yyyy'),
-          units: differenceInDays(endOfYear(yearStart), yearStart) +1
+        primaryHeader = eachMonthOfInterval(interval).map(monthStart => ({
+          label: format(monthStart, 'MMMM yyyy'),
+          units: differenceInDays(endOfMonth(monthStart), monthStart) + 1
         }));
 
-        secondaryHeader = eachMonthOfInterval(interval).map(monthStart => ({ 
-          label: format(monthStart, 'MMM'), 
-          units: differenceInDays(endOfMonth(monthStart), monthStart) + 1
+        secondaryHeader = secondaryHeaderDates.map(day => ({ 
+            label: format(day, 'd'), 
+            units: 1
         }));
         break;
       }
@@ -302,7 +310,7 @@ const GanttChart = () => {
   ), [tasks]);
   
   let todayPositionX = -1;
-  if (interval.start && interval.end) {
+  if (currentDate && interval.start && interval.end) {
       const today = new Date();
       if (today >= interval.start && today <= interval.end) {
           if (timeScale === 'Day' || timeScale === 'Week' || timeScale === 'Month') {
@@ -337,6 +345,14 @@ const GanttChart = () => {
   const taskHasChildren = (taskId: string) => {
     return allTasks.some(t => t.parentId === taskId);
   };
+  
+  if (!currentDate) {
+    return (
+        <div className="p-4 md:p-8 h-full flex flex-col items-center justify-center">
+            <p>Loading Gantt Chart...</p>
+        </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-8 h-full flex flex-col bg-background">
@@ -432,8 +448,8 @@ const GanttChart = () => {
                     let isWeekend = false;
                     const dateIndex = timeScale === 'Week' ? i * 7 : i;
                     if ((timeScale === 'Day' || timeScale === 'Month') && secondaryHeaderDates[dateIndex]) {
-                      const currentDate = secondaryHeaderDates[dateIndex];
-                      isWeekend = isSaturday(currentDate) || isSunday(currentDate);
+                      const currentDateHeader = secondaryHeaderDates[dateIndex];
+                      isWeekend = isSaturday(currentDateHeader) || isSunday(currentDateHeader);
                     }
                     return (
                       <div key={i} className={`h-7 flex items-center justify-center border-r border-b border-border/50 ${isWeekend && timeScale !== 'Week' ? 'bg-muted/60' : ''}`}>
