@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 
 type Node = {
   id: string;
@@ -49,25 +50,40 @@ const GanttChart = () => {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [timeScale, setTimeScale] = useState<TimeScale>("Month");
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [cellWidth, setCellWidth] = useState(200);
+
+  useEffect(() => {
+    switch (timeScale) {
+      case "Day":
+        setCellWidth(60);
+        break;
+      case "Week":
+        setCellWidth(100);
+        break;
+      case "Month":
+        setCellWidth(200);
+        break;
+      case "Year":
+        setCellWidth(500);
+        break;
+    }
+  }, [timeScale]);
 
   const {
     interval,
     headerGroups,
     totalUnits,
-    unitWidth,
     timelineWidth,
   } = useMemo(() => {
     let interval;
     let headerGroups: { label: string; units: number }[] = [];
     let totalUnits = 0;
-    let unitWidth = 0;
 
     const projectStart = new Date(Math.min(...tasks.map(t => parseISO(t.startDate).getTime())));
     const projectEnd = new Date(Math.max(...tasks.map(t => parseISO(t.endDate).getTime())));
 
     switch (timeScale) {
       case "Day":
-        unitWidth = 60;
         interval = { start: startOfWeek(projectStart), end: endOfWeek(projectEnd) };
         totalUnits = differenceInDays(interval.end, interval.start) + 1;
         const monthsInDayView = eachMonthOfInterval(interval);
@@ -79,19 +95,16 @@ const GanttChart = () => {
         });
         break;
       case "Week":
-        unitWidth = 100;
         interval = { start: startOfWeek(projectStart), end: endOfWeek(projectEnd) };
         totalUnits = differenceInWeeks(interval.end, interval.start) + 1;
         headerGroups = eachWeekOfInterval(interval).map(week => ({ label: `W${format(week, 'w')}`, units: 1 }));
         break;
       case "Month":
-        unitWidth = 200;
         interval = { start: startOfYear(currentDate), end: endOfYear(currentDate) };
         totalUnits = 12;
         headerGroups = eachMonthOfInterval(interval).map(month => ({ label: format(month, 'MMM'), units: 1 }));
         break;
       case "Year":
-        unitWidth = 500;
         const startYear = startOfYear(projectStart);
         const endYear = endOfYear(projectEnd);
         interval = { start: startYear, end: endYear };
@@ -104,10 +117,9 @@ const GanttChart = () => {
       interval,
       headerGroups,
       totalUnits,
-      unitWidth,
-      timelineWidth: totalUnits * unitWidth,
+      timelineWidth: totalUnits * cellWidth,
     };
-  }, [timeScale, currentDate]);
+  }, [timeScale, currentDate, cellWidth]);
   
   const getTaskPosition = useCallback((taskStartDateStr: string, taskEndDateStr: string) => {
     const taskStartDate = parseISO(taskStartDateStr);
@@ -135,10 +147,10 @@ const GanttChart = () => {
             break;
     }
     
-    const left = startOffset * unitWidth;
-    const width = duration * unitWidth;
+    const left = startOffset * cellWidth;
+    const width = duration * cellWidth;
     return { left, width };
-  }, [timeScale, interval, unitWidth]);
+  }, [timeScale, interval, cellWidth]);
 
 
   const startResizing = useCallback((e: React.MouseEvent) => {
@@ -187,31 +199,43 @@ const GanttChart = () => {
   const todayOffset = differenceInDays(new Date(), interval.start);
   let todayPositionX = -1;
   if (timeScale === "Day" && todayOffset >= 0 && todayOffset < totalUnits) {
-      todayPositionX = todayOffset * unitWidth;
+      todayPositionX = todayOffset * cellWidth;
   }
 
 
   return (
     <div className="p-4 md:p-8 h-full flex flex-col bg-background">
-      <header className="mb-6 flex justify-between items-center">
+      <header className="mb-6 flex justify-between items-center gap-4 flex-wrap">
         <div>
             <h1 className="text-3xl font-bold font-headline">Gantt Chart</h1>
             <p className="text-muted-foreground mt-1">
             Visualisasikan linimasa proyek dengan dependensi tugas yang interaktif.
             </p>
         </div>
-        <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-            {(["Day", "Week", "Month", "Year"] as TimeScale[]).map(scale => (
-                <Button 
-                    key={scale}
-                    variant={timeScale === scale ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setTimeScale(scale)}
-                    className="h-8 px-3"
-                >
-                    {scale}
-                </Button>
-            ))}
+        <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+                {(["Day", "Week", "Month", "Year"] as TimeScale[]).map(scale => (
+                    <Button 
+                        key={scale}
+                        variant={timeScale === scale ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setTimeScale(scale)}
+                        className="h-8 px-3"
+                    >
+                        {scale}
+                    </Button>
+                ))}
+            </div>
+            <div className="flex items-center gap-2 w-40">
+                <span className="text-sm text-muted-foreground">Cell Width</span>
+                <Slider
+                    min={timeScale === 'Day' ? 30 : 50}
+                    max={timeScale === 'Day' ? 150 : (timeScale === 'Week' ? 200 : (timeScale === 'Month' ? 400 : 800))}
+                    step={10}
+                    value={[cellWidth]}
+                    onValueChange={(value) => setCellWidth(value[0])}
+                />
+            </div>
         </div>
       </header>
 
@@ -253,7 +277,7 @@ const GanttChart = () => {
           <div className="overflow-x-auto bg-card">
             <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Timeline Header */}
-              <div className="sticky top-0 z-20 grid bg-card/95 backdrop-blur-sm" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${unitWidth}px)` }}>
+              <div className="sticky top-0 z-20 grid bg-card/95 backdrop-blur-sm" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${cellWidth}px)` }}>
                 {headerGroups.map((group, i) => (
                   <div key={i} className={`h-14 flex items-center justify-center border-r border-b border-border/50`}>
                     <span className="font-semibold text-base">{group.label}</span>
@@ -264,7 +288,7 @@ const GanttChart = () => {
               {/* Timeline Content */}
               <div className="relative" style={{ height: `${tasks.length * ROW_HEIGHT_PX}px` }}>
                  {/* Grid Lines */}
-                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${unitWidth}px)` }}>
+                <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${cellWidth}px)` }}>
                   {Array.from({ length: totalUnits }).map((_, i) => (
                     <div key={i} className="border-r border-border/30 h-full"></div>
                   ))}
@@ -277,7 +301,7 @@ const GanttChart = () => {
 
                 {/* Today Marker */}
                 {todayPositionX !== -1 && (
-                  <div className="absolute top-0 h-full w-px bg-primary z-20" style={{ left: `${todayPositionX + unitWidth / 2}px` }}>
+                  <div className="absolute top-0 h-full w-px bg-primary z-20" style={{ left: `${todayPositionX + cellWidth / 2}px` }}>
                     <div className="absolute -top-1 -translate-x-1/2 left-1/2 bg-primary text-primary-foreground text-xs font-bold rounded-full px-1.5 py-0.5">
                       Today
                     </div>
@@ -367,5 +391,4 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
-
-    
+ 
