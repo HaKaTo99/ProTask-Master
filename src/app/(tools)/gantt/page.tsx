@@ -18,7 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 
 type Node = {
   id: string;
@@ -26,6 +25,8 @@ type Node = {
   endDate: Date;
   y: number;
 };
+
+const ROW_HEIGHT_PX = 56; // Corresponds to h-14 in Tailwind
 
 const GanttChart = () => {
   const monthStart = startOfMonth(new Date());
@@ -65,7 +66,7 @@ const GanttChart = () => {
       id: task.id,
       startDate: parseISO(task.startDate),
       endDate: parseISO(task.endDate),
-      y: index * 56 + 28, // 56px row height, 28px is half to center the line
+      y: index * ROW_HEIGHT_PX + (ROW_HEIGHT_PX / 2),
     }))
   );
 
@@ -84,10 +85,10 @@ const GanttChart = () => {
           <div className="border-r overflow-y-auto">
             <Table className="relative">
               <TableHeader className="sticky top-0 bg-secondary/80 backdrop-blur-sm z-10">
-                <TableRow>
-                  <TableHead className="h-14 w-[250px] font-bold">Task</TableHead>
-                  <TableHead className="font-bold">Start Date</TableHead>
-                  <TableHead className="font-bold">End Date</TableHead>
+                <TableRow className="h-14 hover:bg-transparent">
+                  <TableHead className="min-w-[250px] font-bold">Task</TableHead>
+                  <TableHead className="font-bold">Start</TableHead>
+                  <TableHead className="font-bold">End</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -98,8 +99,8 @@ const GanttChart = () => {
                         <span className="font-medium truncate">{task.title}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{format(parseISO(task.startDate), 'MMM d, yyyy')}</TableCell>
-                    <TableCell className="text-muted-foreground">{format(parseISO(task.endDate), 'MMM d, yyyy')}</TableCell>
+                    <TableCell className="text-muted-foreground">{format(parseISO(task.startDate), 'd MMM')}</TableCell>
+                    <TableCell className="text-muted-foreground">{format(parseISO(task.endDate), 'd MMM')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -108,7 +109,7 @@ const GanttChart = () => {
           
           {/* Timeline Column */}
           <div className="overflow-x-auto">
-            <div className="relative" style={{ width: `${totalDays * 60}px` }}>
+            <div className="relative" style={{ minWidth: `${totalDays * 60}px` }}>
               {/* Timeline Header */}
               <div className="sticky top-0 z-20 grid bg-secondary/80 backdrop-blur-sm" style={{ gridTemplateColumns: `repeat(${totalDays}, 60px)` }}>
                 {daysInMonth.map((day, i) => (
@@ -119,7 +120,8 @@ const GanttChart = () => {
                 ))}
               </div>
               
-              <div className="relative">
+              {/* Timeline Content */}
+              <div className="relative" style={{ height: `${tasks.length * ROW_HEIGHT_PX}px` }}>
                 {/* Dependency Lines */}
                 <svg width="100%" height="100%" className="absolute top-0 left-0 overflow-visible" style={{ pointerEvents: 'none' }}>
                   <defs>
@@ -139,8 +141,8 @@ const GanttChart = () => {
                       const toPosition = getTaskPosition(toNode.startDate.toISOString(), toNode.endDate.toISOString());
                       const toX = toPosition.left / 100 * (totalDays * 60);
                       
-                      const startPointX = fromX - 1; // exit from the very end of the bar
-                      const endPointX = toX - 8; // arrive before the marker
+                      const startPointX = fromX - 1;
+                      const endPointX = toX - 8; 
 
                       return (
                         <path 
@@ -156,39 +158,48 @@ const GanttChart = () => {
                   )}
                 </svg>
 
-                {/* Task Rows and Bars */}
+                {/* Task Bars */}
                 {tasks.map((task, index) => {
                   const { left, width } = getTaskPosition(task.startDate, task.endDate);
                   const progress = statusProgress[task.status] || 0;
                   return (
-                    <div key={task.id} className="relative h-14 border-b flex items-center pr-2 group/row">
-                      {/* The bar container */}
-                      <div
-                        className="absolute h-8 flex items-center transition-all duration-200"
-                        style={{ left: `${left}%`, width: `${width}%`}}
-                        title={`${task.title} (${format(parseISO(task.startDate), 'MMM d')} - ${format(parseISO(task.endDate), 'MMM d')})`}
-                      >
-                         <div className={`absolute inset-0 rounded-sm transition-colors ${priorityColors[task.priority]}`}>
-                            {/* Progress Fill */}
-                            <div 
-                              className="absolute inset-y-0 left-0 bg-black/20 rounded-l-sm"
-                              style={{ width: `${progress}%`}}
-                            ></div>
-                         </div>
-                         <span className="relative truncate text-white font-medium text-xs z-10 ml-2">{task.title}</span>
-                      </div>
-                      
-                      {task.assignee && (
-                        <div 
-                          className="absolute flex items-center transition-all duration-200" 
-                          style={{ left: `calc(${left}% + ${width}% + 8px)` }}
+                    <div 
+                      key={task.id} 
+                      className="absolute flex items-center"
+                      style={{ 
+                        top: `${index * ROW_HEIGHT_PX}px`,
+                        left: `0`,
+                        width: '100%',
+                        height: `${ROW_HEIGHT_PX}px`,
+                      }}
+                    >
+                      <div className="relative w-full h-full border-b">
+                        <div
+                          className="absolute h-8 top-1/2 -translate-y-1/2 flex items-center transition-all duration-200 rounded-sm"
+                          style={{ left: `${left}%`, width: `${width}%`}}
+                          title={`${task.title} (${format(parseISO(task.startDate), 'MMM d')} - ${format(parseISO(task.endDate), 'MMM d')})`}
                         >
-                            <Avatar className="h-7 w-7 border-2 border-white">
-                                <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
-                                <AvatarFallback>{task.assignee.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
+                           <div className={`absolute inset-0 rounded-sm transition-colors ${priorityColors[task.priority]}`}>
+                              <div 
+                                className="absolute inset-y-0 left-0 bg-black/20 rounded-l-sm"
+                                style={{ width: `${progress}%`}}
+                              ></div>
+                           </div>
+                           <span className="relative truncate text-white font-medium text-xs z-10 ml-2">{task.title}</span>
                         </div>
-                      )}
+                        
+                        {task.assignee && (
+                          <div 
+                            className="absolute flex items-center top-1/2 -translate-y-1/2" 
+                            style={{ left: `calc(${left}% + ${width}% + 8px)` }}
+                          >
+                              <Avatar className="h-7 w-7 border-2 border-background">
+                                  <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
+                                  <AvatarFallback>{task.assignee.name.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
