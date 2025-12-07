@@ -55,7 +55,7 @@ const ROW_HEIGHT_PX = 56; // Corresponds to h-14 in Tailwind
 type HeaderGroup = { label: string; units: number };
 
 const GanttChart = () => {
-  const [sidebarWidth, setSidebarWidth] = useState(400);
+  const [sidebarWidth, setSidebarWidth] = useState(450);
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [timeScale, setTimeScale] = useState<TimeScale>("Month");
@@ -167,23 +167,33 @@ const GanttChart = () => {
         const start = startOfWeek(intervalStart, weekOptions);
         const end = endOfWeek(intervalEnd, weekOptions);
         interval = { start, end };
-
-        secondaryHeaderDates = eachDayOfInterval({ start, end });
-        totalUnits = differenceInDays(end, start) + 1;
-
+        
+        const weeks = eachWeekOfInterval({ start, end }, weekOptions);
+        secondaryHeaderDates = weeks;
+        totalUnits = weeks.length;
+        
         const monthsInInterval = eachMonthOfInterval({ start, end });
         
         primaryHeader = monthsInInterval.map(monthStart => {
-          const monthEnd = endOfMonth(monthStart);
-          const firstDayOfMonthInView = monthStart > start ? monthStart : start;
-          const lastDayOfMonthInView = monthEnd < end ? monthEnd : end;
-          const daysInMonthView = differenceInDays(lastDayOfMonthInView, firstDayOfMonthInView) + 1;
-          return { label: format(monthStart, 'MMMM yyyy'), units: daysInMonthView };
-        }).filter(group => group.units > 0);
+          const firstDayOfMonth = startOfWeek(monthStart, weekOptions);
+          const lastDayOfMonth = endOfWeek(endOfMonth(monthStart), weekOptions);
         
-        const weeksInInterval = eachWeekOfInterval({start, end}, weekOptions);
-        secondaryHeader = weeksInInterval.map(week => ({ 
-            label: `W${format(week, 'w')}`, units: 7
+          const weeksInMonth = eachWeekOfInterval({
+              start: firstDayOfMonth > start ? firstDayOfMonth : start,
+              end: lastDayOfMonth < end ? lastDayOfMonth : end,
+          }, weekOptions);
+
+          const weeksInMonthCount = weeksInMonth.filter(week => {
+            const weekStart = week;
+            const weekEnd = endOfWeek(week, weekOptions);
+            return (weekStart >= start && weekStart <= end) || (weekEnd >=start && weekEnd <= end);
+          }).length;
+        
+          return { label: format(monthStart, 'MMMM yyyy'), units: weeksInMonthCount };
+        }).filter(g => g.units > 0);
+
+        secondaryHeader = weeks.map(week => ({ 
+            label: `W${format(week, 'w')}`, units: 1
         }));
         break;
       }
@@ -245,13 +255,19 @@ const GanttChart = () => {
 
     switch (timeScale) {
         case "Day":
-        case "Week":
         case "Month":
         {
             const startOffset = differenceInDays(taskStartDate, interval.start);
             const duration = differenceInDays(taskEndDate, taskStartDate) + 1;
             const left = startOffset * cellWidth;
             const width = duration * cellWidth;
+            return { left, width };
+        }
+        case "Week": {
+            const startOffset = differenceInDays(taskStartDate, interval.start);
+            const duration = differenceInDays(taskEndDate, taskStartDate) + 1;
+            const left = (startOffset / 7) * cellWidth;
+            const width = (duration / 7) * cellWidth;
             return { left, width };
         }
         case "Year": {
@@ -313,10 +329,16 @@ const GanttChart = () => {
   if (currentDate && interval.start && interval.end) {
       const today = new Date();
       if (today >= interval.start && today <= interval.end) {
-          if (timeScale === 'Day' || timeScale === 'Week' || timeScale === 'Month') {
+          if (timeScale === 'Day' || timeScale === 'Month') {
               const todayOffset = differenceInDays(today, interval.start);
               if (todayOffset >= 0) {
                  todayPositionX = todayOffset * cellWidth;
+              }
+          }
+          if (timeScale === 'Week') {
+              const todayOffset = differenceInDays(today, interval.start);
+              if (todayOffset >= 0) {
+                todayPositionX = (todayOffset / 7) * cellWidth;
               }
           }
           if (timeScale === 'Year') {
@@ -400,12 +422,13 @@ const GanttChart = () => {
                   <TableHead className="w-auto font-bold">Task</TableHead>
                   <TableHead className="w-[100px] font-bold">Start</TableHead>
                   <TableHead className="w-[100px] font-bold">End</TableHead>
+                  <TableHead className="w-[120px] font-bold">Predecessor</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tasks.map((task) => (
                   <TableRow key={task.id} style={{ height: `${ROW_HEIGHT_PX}px` }} className="border-b border-border/50 hover:bg-muted/50">
-                    <TableCell>
+                    <TableCell className="truncate">
                       <div className="flex items-center gap-1" style={{ paddingLeft: `${getTaskLevel(task) * 20}px` }}>
                         {taskHasChildren(task.id) ? (
                             <button onClick={() => toggleCollapse(task.id)} className="p-1 -ml-1 rounded hover:bg-accent">
@@ -419,6 +442,7 @@ const GanttChart = () => {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{format(parseISO(task.startDate), 'd MMM yy')}</TableCell>
                     <TableCell className="text-muted-foreground">{format(parseISO(task.endDate), 'd MMM yy')}</TableCell>
+                    <TableCell className="text-muted-foreground truncate">{task.dependencies.join(', ')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
