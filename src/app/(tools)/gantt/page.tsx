@@ -64,7 +64,7 @@ const GanttChart = () => {
         setCellWidth(40);
         break;
       case "Week":
-        setCellWidth(100);
+        setCellWidth(15);
         break;
       case "Month":
         setCellWidth(120);
@@ -114,23 +114,27 @@ const GanttChart = () => {
         break;
       }
       case "Week": {
-        interval = { start: startOfWeek(projectStart, { weekStartsOn: 1 }), end: endOfWeek(projectEnd, { weekStartsOn: 1 }) };
-        const weeks = eachWeekOfInterval(interval, { weekStartsOn: 1 });
-        totalUnits = weeks.length;
+        interval = { start: startOfYear(currentDate), end: endOfYear(currentDate) };
+        const weekOptions = { weekStartsOn: 1 as const };
+        const start = startOfWeek(interval.start, weekOptions);
+        const end = endOfWeek(interval.end, weekOptions);
+        
+        const weeks = eachWeekOfInterval({ start, end }, weekOptions);
         secondaryHeaderDates = weeks;
+        totalUnits = differenceInDays(end, start) + 1;
 
-        const monthsInInterval = eachMonthOfInterval(interval);
+        const monthsInInterval = eachMonthOfInterval({ start, end });
         
         primaryHeader = monthsInInterval.map(monthStart => {
-            const weeksInMonth = weeks.filter(weekStart => {
-                return weekStart.getMonth() === monthStart.getMonth() && weekStart.getFullYear() === monthStart.getFullYear();
-            }).length;
-
-            return { label: format(monthStart, 'MMMM yyyy'), units: weeksInMonth };
+            const monthEnd = endOfMonth(monthStart);
+            const firstDay = monthStart > start ? monthStart : start;
+            const lastDay = monthEnd < end ? monthEnd : end;
+            const daysInMonth = differenceInDays(lastDay, firstDay) + 1;
+            return { label: format(monthStart, 'MMMM yyyy'), units: daysInMonth };
         }).filter(group => group.units > 0);
         
         secondaryHeader = weeks.map(week => ({ 
-            label: `W${format(week, 'w')}`, units: 1 
+            label: `W${format(week, 'w')}`, units: 7 
         }));
         break;
       }
@@ -191,12 +195,10 @@ const GanttChart = () => {
 
     switch (timeScale) {
         case "Day":
-            startOffset = differenceInDays(taskStartDate, interval.start);
-            duration = differenceInDays(taskEndDate, taskStartDate) + 1;
-            break;
         case "Week":
-            startOffset = differenceInWeeks(taskStartDate, interval.start, weekOptions);
-            duration = Math.max(1, differenceInWeeks(taskEndDate, taskStartDate, weekOptions) + 1);
+            const intervalStart = timeScale === 'Week' ? startOfWeek(interval.start, weekOptions) : interval.start;
+            startOffset = differenceInDays(taskStartDate, intervalStart);
+            duration = differenceInDays(taskEndDate, taskStartDate) + 1;
             break;
         case "Month":
             const monthStart = interval.start;
@@ -262,9 +264,10 @@ const GanttChart = () => {
     })).map(node => [node.id, node])
   ), [tasks]);
   
-  const todayOffset = differenceInDays(new Date(), interval.start);
+  const intervalStartForToday = timeScale === 'Week' ? startOfWeek(interval.start, {weekStartsOn: 1}) : interval.start;
+  const todayOffset = differenceInDays(new Date(), intervalStartForToday);
   let todayPositionX = -1;
-  if (timeScale === "Day" && todayOffset >= 0 && todayOffset < totalUnits) {
+  if ((timeScale === "Day" || timeScale === "Week") && todayOffset >= 0 && todayOffset < totalUnits) {
       todayPositionX = todayOffset * cellWidth;
   }
 
@@ -295,9 +298,9 @@ const GanttChart = () => {
             <div className="flex items-center gap-2 w-40">
                 <span className="text-sm text-muted-foreground">Cell Width</span>
                 <Slider
-                    min={timeScale === 'Day' ? 30 : 50}
-                    max={timeScale === 'Day' ? 150 : (timeScale === 'Week' ? 200 : (timeScale === 'Month' ? 400 : 800))}
-                    step={10}
+                    min={timeScale === 'Day' ? 30 : (timeScale === 'Week' ? 10 : 50)}
+                    max={timeScale === 'Day' ? 150 : (timeScale === 'Week' ? 50 : (timeScale === 'Month' ? 400 : 800))}
+                    step={timeScale === 'Week' ? 1 : 10}
                     value={[cellWidth]}
                     onValueChange={(value) => setCellWidth(value[0])}
                 />
@@ -351,12 +354,15 @@ const GanttChart = () => {
                     </div>
                   ))}
                 </div>
-                <div className="grid" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${cellWidth}px)` }}>
-                  {secondaryHeader.map((group, i) => (
-                    <div key={i} className={`h-7 flex items-center justify-center border-r border-b border-border/50 ${timeScale === 'Day' && (isSaturday(secondaryHeaderDates[i]) || isSunday(secondaryHeaderDates[i])) ? 'bg-muted/60' : ''}`} style={{ gridColumn: `span ${group.units}` }}>
-                      <span className="font-medium text-xs">{group.label}</span>
-                    </div>
-                  ))}
+                <div className="grid" style={{ gridTemplateColumns: secondaryHeader.map(g => `${g.units * cellWidth}px`).join(' ') }}>
+                  {secondaryHeader.map((group, i) => {
+                    const isWeekend = timeScale === 'Day' && (isSaturday(secondaryHeaderDates[i]) || isSunday(secondaryHeaderDates[i]));
+                    return (
+                      <div key={i} className={`h-7 flex items-center justify-center border-r border-b border-border/50 ${isWeekend ? 'bg-muted/60' : ''}`}>
+                        <span className="font-medium text-xs">{group.label}</span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
               
@@ -364,9 +370,19 @@ const GanttChart = () => {
               <div className="relative" style={{ height: `${tasks.length * ROW_HEIGHT_PX}px` }}>
                  {/* Grid Lines */}
                 <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${totalUnits}, ${cellWidth}px)` }}>
-                  {Array.from({ length: totalUnits }).map((_, i) => (
-                    <div key={i} className={`border-r border-border/30 h-full ${timeScale === 'Day' && secondaryHeaderDates[i] && (isSaturday(secondaryHeaderDates[i]) || isSunday(secondaryHeaderDates[i])) ? 'bg-muted/60' : ''}`}></div>
-                  ))}
+                  {Array.from({ length: totalUnits }).map((_, i) => {
+                     let isWeekend = false;
+                      if (timeScale === 'Day' && secondaryHeaderDates[i]) {
+                        isWeekend = isSaturday(secondaryHeaderDates[i]) || isSunday(secondaryHeaderDates[i]);
+                      } else if (timeScale === 'Week') {
+                        const dayIndex = i % 7;
+                        // 5 is Saturday, 6 is Sunday, assuming week starts on Monday (index 0)
+                        isWeekend = dayIndex === 5 || dayIndex === 6;
+                      }
+                    return (
+                      <div key={i} className={`border-r border-border/30 h-full ${isWeekend ? 'bg-muted/60' : ''}`}></div>
+                    )
+                  })}
                 </div>
                  <div className="absolute inset-0 grid" style={{ gridTemplateRows: `repeat(${tasks.length}, ${ROW_HEIGHT_PX}px)` }}>
                   {Array.from({ length: tasks.length }).map((_, i) => (
@@ -466,5 +482,3 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
-
-    
