@@ -28,6 +28,11 @@ import {
   getISOWeek,
   addDays,
   isValid,
+  startOfDay,
+  endOfDay,
+  eachHourOfInterval,
+  differenceInMinutes,
+  addMinutes,
 } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -52,9 +57,9 @@ import { TaskEditorDialog } from "@/components/gantt/TaskEditorDialog";
 const initialTasksData: Task[] = [
   { id: 'eps-1', title: 'Proyek Unggulan 2025', description: 'Proyek utama untuk tahun 2025.', status: 'To Do', priority: 'Urgent', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: [], type: 'EPS' },
   { id: 'wbs-1.1', parentId: 'eps-1', title: '1.0 Perencanaan & Desain', description: 'Fase awal untuk riset, perencanaan, dan desain arsitektur.', status: 'To Do', priority: 'High', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-02-28T00:00:00.000Z', dependencies: [], type: 'WBS' },
-  { id: 'act-1.1.1', parentId: 'wbs-1.1', title: '1.1 Riset Pasar & Analisis Kebutuhan', description: 'Menganalisis target pasar dan kebutuhan pengguna.', status: 'To Do', priority: 'High', assigneeId: 'user-3', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-01-31T00:00:00.000Z', dependencies: [], type: 'Activity' },
-  { id: 'act-1.1.2', parentId: 'wbs-1.1', title: '1.2 Desain Arsitektur Sistem', description: 'Merancang arsitektur teknis dan model data.', status: 'To Do', priority: 'High', assigneeId: 'user-5', startDate: '2025-02-01T00:00:00.000Z', endDate: '2025-02-28T00:00:00.000Z', dependencies: [{ id: 'act-1.1.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
-  { id: 'milestone-1.1.3', parentId: 'wbs-1.1', title: 'Persetujuan Desain Arsitektur', description: 'Persetujuan akhir untuk desain arsitektur.', status: 'To Do', priority: 'Urgent', startDate: '2025-02-28T00:00:00.000Z', endDate: '2025-02-28T00:00:00.000Z', dependencies: [{ id: 'act-1.1.2', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'act-1.1.1', parentId: 'wbs-1.1', title: '1.1 Riset Pasar & Analisis Kebutuhan', description: 'Menganalisis target pasar dan kebutuhan pengguna.', status: 'To Do', priority: 'High', assigneeId: 'user-3', startDate: '2025-01-01T09:00:00.000Z', endDate: '2025-01-01T17:00:00.000Z', dependencies: [], type: 'Activity' },
+  { id: 'act-1.1.2', parentId: 'wbs-1.1', title: '1.2 Desain Arsitektur Sistem', description: 'Merancang arsitektur teknis dan model data.', status: 'To Do', priority: 'High', assigneeId: 'user-5', startDate: '2025-01-02T09:00:00.000Z', endDate: '2025-01-02T15:00:00.000Z', dependencies: [{ id: 'act-1.1.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'milestone-1.1.3', parentId: 'wbs-1.1', title: 'Persetujuan Desain Arsitektur', description: 'Persetujuan akhir untuk desain arsitektur.', status: 'To Do', priority: 'Urgent', startDate: '2025-02-28T17:00:00.000Z', endDate: '2025-02-28T17:00:00.000Z', dependencies: [{ id: 'act-1.1.2', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
   { id: 'wbs-1.2', parentId: 'eps-1', title: '2.0 Pengembangan Inti', description: 'Pengembangan backend dan infrastruktur dasar.', status: 'To Do', priority: 'High', startDate: '2025-03-01T00:00:00.000Z', endDate: '2025-06-30T00:00:00.000Z', dependencies: [{ id: 'milestone-1.1.3', type: 'Finish-to-Start', lag: 0 }], type: 'WBS' },
   { id: 'act-1.2.1', parentId: 'wbs-1.2', title: '2.1 Pengaturan Lingkungan Pengembangan', description: 'Menyiapkan repositori, CI/CD, dan cloud environment.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-03-01T00:00:00.000Z', endDate: '2025-03-15T00:00:00.000Z', dependencies: [{ id: 'milestone-1.1.3', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
   { id: 'act-1.2.2', parentId: 'wbs-1.2', title: '2.2 Pengembangan API Backend', description: 'Membangun endpoint API utama untuk aplikasi.', status: 'To Do', priority: 'Urgent', assigneeId: 'user-5', startDate: '2025-03-16T00:00:00.000Z', endDate: '2025-05-31T00:00:00.000Z', dependencies: [{ id: 'act-1.2.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
@@ -77,7 +82,7 @@ type Node = {
   isCritical?: boolean;
 };
 
-type TimeScale = "Day" | "Week" | "Month" | "Year";
+type TimeScale = "Hour" | "Day" | "Week" | "Month" | "Year";
 
 const ROW_HEIGHT_PX = 60; // Increased height for baseline bar
 const HEADER_HEIGHT_PX = 56;
@@ -458,6 +463,9 @@ const GanttChart = () => {
   useEffect(() => {
     // Reset cell width when time scale changes for a better default UX
     switch (timeScale) {
+      case "Hour":
+        setCellWidth(50);
+        break;
       case "Day":
         setCellWidth(60);
         break;
@@ -492,6 +500,17 @@ const GanttChart = () => {
     let totalUnits = 0;
 
     switch (timeScale) {
+      case "Hour": {
+        interval = { start: startOfDay(currentDate), end: endOfDay(currentDate) };
+        secondaryHeaderDates = eachHourOfInterval(interval);
+        totalUnits = secondaryHeaderDates.length;
+        primaryHeader = [{ label: format(currentDate, "eeee, d MMM"), units: 24 }];
+        secondaryHeader = secondaryHeaderDates.map(hour => ({
+          label: format(hour, 'HH:mm'),
+          units: 1,
+        }));
+        break;
+      }
       case "Day": {
         const yearStart = startOfYear(currentDate);
         const yearEnd = endOfYear(currentDate);
@@ -581,6 +600,7 @@ const GanttChart = () => {
   const getPositionFromDate = useCallback((date: Date) => {
       if (!isValid(date)) return 0;
       switch (timeScale) {
+        case 'Hour': return differenceInMinutes(date, interval.start) * (getUnitWidth() / 60);
         case 'Day': return differenceInDays(date, interval.start) * getUnitWidth();
         case 'Week': return Math.floor(differenceInDays(date, interval.start) / 7) * getUnitWidth();
         case 'Month': return differenceInMonths(date, interval.start) * getUnitWidth();
@@ -591,6 +611,7 @@ const GanttChart = () => {
   
   const getDateFromPosition = useCallback((x: number) => {
     switch (timeScale) {
+      case 'Hour': return addMinutes(interval.start, x / (getUnitWidth() / 60));
       case 'Day': return addDays(interval.start, x / getUnitWidth());
       case 'Week': return addDays(interval.start, (x / getUnitWidth()) * 7);
       case 'Month': return addMonths(interval.start, x / getUnitWidth());
@@ -611,12 +632,23 @@ const GanttChart = () => {
     const isMilestone = taskStartDate.getTime() === taskEndDate.getTime();
     
     const left = getPositionFromDate(taskStartDate);
-    const end = getPositionFromDate(isMilestone ? taskEndDate : addDays(taskEndDate, 1));
-    const width = Math.max(end - left, isMilestone ? 0 : getUnitWidth() / 10);
+    // For non-milestone tasks in Day scale or larger, we ensure they have a minimum visual duration.
+    // For Hour scale, we use the precise end time.
+    const effectiveEndDate = (timeScale !== 'Hour' && !isMilestone) ? addDays(taskEndDate, 1) : taskEndDate;
+    const end = getPositionFromDate(effectiveEndDate);
+
+    let width = end - left;
+
+    if (isMilestone) {
+        width = 0; // Milestones have no width, they are a point in time
+    } else if (timeScale !== 'Hour' && width < getUnitWidth()/10) {
+        // Ensure a minimum visual width for very short tasks on larger scales
+        width = getUnitWidth() / 10;
+    }
     
     return { left, width };
 
-  }, [getPositionFromDate, getUnitWidth]);
+  }, [getPositionFromDate, getUnitWidth, timeScale]);
 
 
   const startResizing = useCallback((e: React.MouseEvent) => {
@@ -650,7 +682,7 @@ const GanttChart = () => {
     if (task.type !== 'Activity') return;
     
     const isMilestone = task.startDate === task.endDate;
-    if (isMilestone) return;
+    if (isMilestone && action !== 'move') return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -692,16 +724,20 @@ const GanttChart = () => {
     if (draggingInfo) {
       const dx = e.clientX - draggingInfo.initialX;
       
-      const newStartDate = getDateFromPosition(getPositionFromDate(draggingInfo.initialStartDate) + dx);
-      const newEndDate = getDateFromPosition(getPositionFromDate(draggingInfo.initialEndDate) + dx);
-      const duration = differenceInDays(draggingInfo.initialEndDate, draggingInfo.initialStartDate);
-      
+      const startPos = getPositionFromDate(draggingInfo.initialStartDate);
+      const endPos = getPositionFromDate(draggingInfo.initialEndDate);
+
+      const newStartDate = getDateFromPosition(startPos + dx);
+      const newEndDate = getDateFromPosition(endPos + dx);
+
+      const durationInMinutes = differenceInMinutes(draggingInfo.initialEndDate, draggingInfo.initialStartDate);
+
       let finalStartDate = draggingInfo.initialStartDate;
       let finalEndDate = draggingInfo.initialEndDate;
       
       if (draggingInfo.action === 'move') {
           finalStartDate = newStartDate;
-          finalEndDate = addDays(newStartDate, duration);
+          finalEndDate = addMinutes(newStartDate, durationInMinutes);
       } else if (draggingInfo.action === 'resize-end') {
           finalEndDate = newEndDate;
           if (finalEndDate < finalStartDate) finalEndDate = finalStartDate;
@@ -723,7 +759,7 @@ const GanttChart = () => {
     } else if (newDependency && ganttContainerRef.current) {
         const rect = ganttContainerRef.current.getBoundingClientRect();
         const endX = e.clientX - rect.left + ganttContainerRef.current.scrollLeft;
-        const endY = e.clientY - rect.top + ganttContainerRef.current.scrollTop;
+        const endY = e.clientY - rect.top + ganttContainerref.current.scrollTop;
         setNewDependency(prev => prev ? { ...prev, endX, endY } : null);
     }
   }, [draggingInfo, getPositionFromDate, getDateFromPosition, newDependency]);
@@ -824,7 +860,7 @@ const GanttChart = () => {
               Set Baseline
             </Button>
             <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-                {(["Day", "Week", "Month", "Year"] as TimeScale[]).map(scale => (
+                {(["Hour", "Day", "Week", "Month", "Year"] as TimeScale[]).map(scale => (
                     <Button 
                         key={scale}
                         variant={timeScale === scale ? 'default' : 'ghost'}
@@ -839,8 +875,8 @@ const GanttChart = () => {
             <div className="flex items-center gap-2 w-40">
                 <span className="text-sm text-muted-foreground">Zoom</span>
                 <Slider
-                    min={timeScale === 'Year' ? 100 : (timeScale === 'Month' ? 50 : (timeScale === 'Week' ? 20 : 30))}
-                    max={timeScale === 'Year' ? 300 : (timeScale === 'Month' ? 200 : (timeScale === 'Week' ? 150 : 100))}
+                    min={timeScale === 'Year' ? 100 : (timeScale === 'Month' ? 50 : (timeScale === 'Week' ? 20 : (timeScale === 'Day' ? 30 : 40)))}
+                    max={timeScale === 'Year' ? 300 : (timeScale === 'Month' ? 200 : (timeScale === 'Week' ? 150 : (timeScale === 'Day' ? 100 : 120)))}
                     step={5}
                     value={[cellWidth]}
                     onValueChange={(value) => setCellWidth(value[0])}
@@ -1064,7 +1100,7 @@ const GanttChart = () => {
                 {/* Task Bars & Milestones */}
                 {tasks.map((task, index) => {
                   const { left, width } = getTaskPosition(task.startDate, task.endDate);
-                  if (width === 0 && left === 0 && !(task.startDate === task.endDate)) return null; // Don't render invalid tasks, but allow milestones
+                  if (width < 0) return null; // Don't render if width is negative
                   const progress = statusProgress[task.status] || 0;
                   const isSummary = task.type !== 'Activity';
                   const isMilestone = task.startDate === task.endDate;
@@ -1084,6 +1120,7 @@ const GanttChart = () => {
                         <TooltipTrigger asChild>
                           <div
                             onDoubleClick={() => setEditingTask(task)}
+                            onMouseDown={(e) => handleDragStart(e, task, 'move')}
                             className="absolute top-0 flex items-center justify-center z-10 cursor-pointer"
                             style={{
                               left: `${left - 12}`, // Center the diamond
@@ -1100,7 +1137,7 @@ const GanttChart = () => {
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="font-bold">{task.title}</p>
-                          <p className="text-muted-foreground">{format(parseISO(task.startDate), 'd MMM yyyy')}</p>
+                          <p className="text-muted-foreground">{format(parseISO(task.startDate), 'd MMM yyyy, HH:mm')}</p>
                         </TooltipContent>
                       </Tooltip>
                     );
@@ -1196,7 +1233,7 @@ const GanttChart = () => {
                         </TooltipTrigger>
                         <TooltipContent>
                            <p className="font-bold">{task.title}</p>
-                           <p className="text-muted-foreground">{`${format(parseISO(task.startDate), 'd MMM')} - ${format(parseISO(task.endDate), 'd MMM yyyy')}`}</p>
+                           <p className="text-muted-foreground">{`${format(parseISO(task.startDate), 'd MMM, HH:mm')} - ${format(parseISO(task.endDate), 'd MMM, HH:mm')}`}</p>
                         </TooltipContent>
                       </Tooltip>
                       
@@ -1270,3 +1307,5 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
+
+    
