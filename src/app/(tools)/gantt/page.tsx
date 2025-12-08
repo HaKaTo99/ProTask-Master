@@ -203,13 +203,13 @@ const GanttChart = () => {
     endY: number;
   } | null>(null);
 
-  const handleUpdateTask = (taskId: string, updatedProperties: Partial<Task>) => {
+  const handleUpdateTask = useCallback((taskId: string, updatedProperties: Partial<Task>) => {
       setAllTasks(prevTasks =>
           prevTasks.map(task =>
               task.id === taskId ? { ...task, ...updatedProperties } : task
           )
       );
-  };
+  }, []);
   
   const handleUpdateTaskDate = (taskId: string, field: 'startDate' | 'endDate', newDate: string) => {
     setAllTasks(prevTasks =>
@@ -275,6 +275,15 @@ const GanttChart = () => {
     );
   };
 
+  const handleUpdateDependencies = useCallback((taskId: string, newDependencies: Dependency[]) => {
+    setAllTasks(prevTasks => {
+      return prevTasks.map(task => 
+        task.id === taskId 
+        ? { ...task, dependencies: newDependencies }
+        : task
+      );
+    });
+  }, []);
 
   useEffect(() => {
     // Set the current date only on the client to avoid hydration mismatch
@@ -565,9 +574,9 @@ const GanttChart = () => {
     };
   }, [timeScale, currentDate, cellWidth]);
   
-  const getUnitWidth = () => {
+  const getUnitWidth = useCallback(() => {
     return cellWidth;
-  };
+  }, [cellWidth]);
 
   const getPositionFromDate = useCallback((date: Date) => {
       if (!isValid(date)) return 0;
@@ -1231,6 +1240,7 @@ const GanttChart = () => {
           }}
           task={editingTask}
           allTasks={allTasks}
+          teamMembers={teamMembers}
           onSave={(updatedTask) => {
             handleUpdateTask(editingTask.id, updatedTask);
             setEditingTask(null);
@@ -1239,9 +1249,7 @@ const GanttChart = () => {
             setAllTasks(allTasks.filter(t => t.id !== taskId));
             setEditingTask(null);
           }}
-          onUpdateDependencies={(taskId, newDependencies) => {
-            handleUpdateTask(taskId, { dependencies: newDependencies });
-          }}
+          onUpdateDependencies={handleUpdateDependencies}
         />
       )}
     </>
@@ -1249,5 +1257,3 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
-
-    
