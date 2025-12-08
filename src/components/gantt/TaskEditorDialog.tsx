@@ -15,7 +15,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Calendar as CalendarIcon, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar as CalendarIcon, Plus, Trash2 } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import { useEffect, useState, useMemo } from 'react';
 import { format, parseISO, isValid, differenceInDays } from 'date-fns';
@@ -42,10 +43,14 @@ export function TaskEditorDialog({
   onUpdateDependencies,
 }: TaskEditorDialogProps) {
   const [editedTask, setEditedTask] = useState<Partial<Task>>({});
+  const [newPredecessor, setNewPredecessor] = useState('');
+  const [newSuccessor, setNewSuccessor] = useState('');
 
   useEffect(() => {
     // Reset local state when a new task is passed in
     setEditedTask(task);
+    setNewPredecessor('');
+    setNewSuccessor('');
   }, [task]);
   
   const statusProgress: { [key: string]: number } = {
@@ -118,12 +123,40 @@ export function TaskEditorDialog({
        const newSuccessorDeps = successorTask.dependencies.filter(depId => depId !== editedTask.id!);
        onUpdateDependencies(successorId, newSuccessorDeps);
      }
-  }
+  };
+
+  const potentialPredecessors = useMemo(() => {
+    const predecessorIds = new Set(predecessors.map(p => p.id));
+    return allTasks.filter(t => t.id !== task.id && !predecessorIds.has(t.id));
+  }, [allTasks, task.id, predecessors]);
+
+  const handleAddPredecessor = () => {
+    if (!newPredecessor || !task.id) return;
+    const newDependencies = [...(editedTask.dependencies || []), newPredecessor];
+    onUpdateDependencies(task.id, newDependencies);
+    setEditedTask(prev => ({...prev, dependencies: newDependencies}));
+    setNewPredecessor('');
+  };
+  
+  const potentialSuccessors = useMemo(() => {
+    const successorIds = new Set(successors.map(s => s.id));
+    return allTasks.filter(t => t.id !== task.id && !successorIds.has(t.id));
+  }, [allTasks, task.id, successors]);
+
+  const handleAddSuccessor = () => {
+    if (!newSuccessor) return;
+    const successorTask = allTasks.find(t => t.id === newSuccessor);
+    if (successorTask) {
+        const newSuccessorDeps = [...successorTask.dependencies, task.id!];
+        onUpdateDependencies(successorTask.id, newSuccessorDeps);
+    }
+    setNewSuccessor('');
+  };
 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0">
+      <DialogContent className="max-w-3xl p-0">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle>Task information</DialogTitle>
         </DialogHeader>
@@ -229,6 +262,21 @@ export function TaskEditorDialog({
             </div>
           </TabsContent>
           <TabsContent value="predecessors" className="p-6 min-h-[300px]">
+             <div className="flex gap-2 mb-4">
+                <Select value={newPredecessor} onValueChange={setNewPredecessor}>
+                    <SelectTrigger className="flex-grow">
+                        <SelectValue placeholder="Select a task to add as predecessor..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {potentialPredecessors.map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Button onClick={handleAddPredecessor} disabled={!newPredecessor}>
+                    <Plus className="mr-2 h-4 w-4" /> Add
+                </Button>
+            </div>
              <Table>
                 <TableHeader>
                     <TableRow>
@@ -250,13 +298,28 @@ export function TaskEditorDialog({
                         ))
                     ) : (
                         <TableRow>
-                            <TableCell colSpan={2} className="text-center text-muted-foreground">No predecessors</TableCell>
+                            <TableCell colSpan={2} className="text-center text-muted-foreground h-24">No predecessors</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
              </Table>
           </TabsContent>
            <TabsContent value="successors" className="p-6 min-h-[300px]">
+            <div className="flex gap-2 mb-4">
+                <Select value={newSuccessor} onValueChange={setNewSuccessor}>
+                    <SelectTrigger className="flex-grow">
+                        <SelectValue placeholder="Select a task to add as successor..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                         {potentialSuccessors.map(s => (
+                            <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Button onClick={handleAddSuccessor} disabled={!newSuccessor}>
+                    <Plus className="mr-2 h-4 w-4" /> Add
+                </Button>
+            </div>
              <Table>
                 <TableHeader>
                     <TableRow>
@@ -278,7 +341,7 @@ export function TaskEditorDialog({
                         ))
                     ) : (
                         <TableRow>
-                            <TableCell colSpan={2} className="text-center text-muted-foreground">No successors</TableCell>
+                            <TableCell colSpan={2} className="text-center text-muted-foreground h-24">No successors</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
