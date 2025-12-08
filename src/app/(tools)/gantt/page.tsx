@@ -607,10 +607,12 @@ const GanttChart = () => {
     if (!isValid(taskStartDate) || !isValid(taskEndDate) || !interval.start || !interval.end) {
       return { left: 0, width: 0};
     }
+
+    const isMilestone = taskStartDate.getTime() === taskEndDate.getTime();
     
     const left = getPositionFromDate(taskStartDate);
-    const end = getPositionFromDate(addDays(taskEndDate, 1));
-    const width = Math.max(end - left, getUnitWidth() / 10);
+    const end = getPositionFromDate(isMilestone ? taskEndDate : addDays(taskEndDate, 1));
+    const width = Math.max(end - left, isMilestone ? 0 : getUnitWidth() / 10);
     
     return { left, width };
 
@@ -648,6 +650,10 @@ const GanttChart = () => {
     if (task.type !== 'Activity' || task.startDate === task.endDate) return;
     e.preventDefault();
     e.stopPropagation();
+
+    const isMilestone = task.startDate === task.endDate;
+    if (isMilestone && (action === 'resize-start' || action === 'resize-end')) return;
+
 
     setDraggingInfo({
       task,
@@ -1058,7 +1064,7 @@ const GanttChart = () => {
                 {/* Task Bars & Milestones */}
                 {tasks.map((task, index) => {
                   const { left, width } = getTaskPosition(task.startDate, task.endDate);
-                  if (width === 0 && left === 0) return null; // Don't render invalid tasks
+                  if (width === 0 && left === 0 && !(task.startDate === task.endDate)) return null; // Don't render invalid tasks, but allow milestones
                   const progress = statusProgress[task.status] || 0;
                   const isSummary = task.type !== 'Activity';
                   const isMilestone = task.startDate === task.endDate;
@@ -1264,3 +1270,5 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
+
+    
