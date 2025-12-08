@@ -180,7 +180,7 @@ const GanttChart = () => {
   const ganttContainerRef = useRef<HTMLDivElement>(null);
   const [timeScale, setTimeScale] = useState<TimeScale>("Month");
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
-  const [cellWidth, setCellWidth] = useState(40);
+  const [cellWidth, setCellWidth] = useState(120);
   const [collapsed, setCollapsed] = useState(new Set<string>());
   const [allTasks, setAllTasks] = useState<Task[]>(initialTasksData);
   const [teamMembers] = useState<TeamMember[]>(initialTeamMembers);
@@ -998,12 +998,16 @@ const GanttChart = () => {
 
                       const isCritical = fromNode.isCritical && toNode.isCritical;
                       const fromPosition = getTaskPosition(fromNode.startDate.toISOString(), fromNode.endDate.toISOString());
+                      const toPosition = getTaskPosition(toNode.startDate.toISOString(), toNode.endDate.toISOString());
                       
-                      const fromX = fromPosition.left + fromPosition.width;
-                      const toX = getTaskPosition(toNode.startDate.toISOString(), toNode.endDate.toISOString()).left;
+                      const fromIsMilestone = fromNode.startDate.getTime() === fromNode.endDate.getTime();
+                      const toIsMilestone = toNode.startDate.getTime() === toNode.endDate.getTime();
+
+                      const fromX = fromIsMilestone ? fromPosition.left : fromPosition.left + fromPosition.width;
+                      const toX = toPosition.left;
                       
                       const startPointX = fromX;
-                      const endPointX = toX - 8; // Offset for arrowhead
+                      const endPointX = toX - (toIsMilestone ? 6 : 8); // smaller offset for milestone diamond
                       const connectorOffset = 20;
 
                       if (endPointX < startPointX + connectorOffset) {
@@ -1075,14 +1079,17 @@ const GanttChart = () => {
                           <div
                             onDoubleClick={() => setEditingTask(task)}
                             className="absolute top-0 flex items-center justify-center z-10 cursor-pointer"
-                            data-task-id={task.id}
                             style={{
-                              left: `${left}`-10,
+                              left: `${left - 12}`, // Center the diamond
                               top: `${index * ROW_HEIGHT_PX + (ROW_HEIGHT_PX / 2)}px`,
                               transform: 'translateY(-50%)',
+                              width: 24,
+                              height: 24,
                             }}
                           >
+                           <div data-handle-type="milestone" data-task-id={task.id} className="w-full h-full flex items-center justify-center">
                             <Diamond className={cn("h-6 w-6", task.isCritical ? "text-accent fill-accent" : "text-foreground fill-foreground" )} />
+                           </div>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -1102,7 +1109,6 @@ const GanttChart = () => {
                     <div 
                       key={task.id} 
                       className="absolute group flex items-center"
-                      data-task-id={task.id}
                       style={{ 
                         top: `${index * ROW_HEIGHT_PX}px`,
                         left: `${left}px`, 
@@ -1116,6 +1122,7 @@ const GanttChart = () => {
                            <div
                               onDoubleClick={() => setEditingTask(task)}
                               onMouseDown={(e) => isDraggable && handleDragStart(e, task, 'move')}
+                              data-task-id={task.id}
                               className={cn(
                                 "relative h-8 w-full flex items-center rounded-sm text-primary-foreground overflow-visible shadow-sm z-10",
                                 isDraggable && "cursor-grab",
