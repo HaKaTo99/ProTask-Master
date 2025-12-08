@@ -55,23 +55,34 @@ import { TaskEditorDialog } from "@/components/gantt/TaskEditorDialog";
 
 
 const initialTasksData: Task[] = [
-  { id: 'eps-1', title: 'Proyek Unggulan 2025', description: 'Proyek utama untuk tahun 2025.', status: 'To Do', priority: 'Urgent', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: [], type: 'EPS' },
-  { id: 'wbs-1.1', parentId: 'eps-1', title: '1.0 Perencanaan & Desain', description: 'Fase awal untuk riset, perencanaan, dan desain arsitektur.', status: 'To Do', priority: 'High', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-02-28T00:00:00.000Z', dependencies: [], type: 'WBS' },
-  { id: 'act-1.1.1', parentId: 'wbs-1.1', title: '1.1 Riset Pasar & Analisis Kebutuhan', description: 'Menganalisis target pasar dan kebutuhan pengguna.', status: 'To Do', priority: 'High', assigneeId: 'user-3', startDate: '2025-01-01T09:00:00.000Z', endDate: '2025-01-01T17:00:00.000Z', dependencies: [], type: 'Activity' },
-  { id: 'act-1.1.2', parentId: 'wbs-1.1', title: '1.2 Desain Arsitektur Sistem', description: 'Merancang arsitektur teknis dan model data.', status: 'To Do', priority: 'High', assigneeId: 'user-5', startDate: '2025-01-02T09:00:00.000Z', endDate: '2025-01-02T15:00:00.000Z', dependencies: [{ id: 'act-1.1.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
-  { id: 'milestone-1.1.3', parentId: 'wbs-1.1', title: 'Persetujuan Desain Arsitektur', description: 'Persetujuan akhir untuk desain arsitektur.', status: 'To Do', priority: 'Urgent', startDate: '2025-02-28T17:00:00.000Z', endDate: '2025-02-28T17:00:00.000Z', dependencies: [{ id: 'act-1.1.2', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
-  { id: 'wbs-1.2', parentId: 'eps-1', title: '2.0 Pengembangan Inti', description: 'Pengembangan backend dan infrastruktur dasar.', status: 'To Do', priority: 'High', startDate: '2025-03-01T00:00:00.000Z', endDate: '2025-06-30T00:00:00.000Z', dependencies: [{ id: 'milestone-1.1.3', type: 'Finish-to-Start', lag: 0 }], type: 'WBS' },
-  { id: 'act-1.2.1', parentId: 'wbs-1.2', title: '2.1 Pengaturan Lingkungan Pengembangan', description: 'Menyiapkan repositori, CI/CD, dan cloud environment.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-03-01T00:00:00.000Z', endDate: '2025-03-15T00:00:00.000Z', dependencies: [{ id: 'milestone-1.1.3', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
-  { id: 'act-1.2.2', parentId: 'wbs-1.2', title: '2.2 Pengembangan API Backend', description: 'Membangun endpoint API utama untuk aplikasi.', status: 'To Do', priority: 'Urgent', assigneeId: 'user-5', startDate: '2025-03-16T00:00:00.000Z', endDate: '2025-05-31T00:00:00.000Z', dependencies: [{ id: 'act-1.2.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
-  { id: 'act-1.2.3', parentId: 'wbs-1.2', title: '2.3 Implementasi Skema Database', description: 'Menerapkan model data ke dalam database.', status: 'To Do', priority: 'High', assigneeId: 'user-2', startDate: '2025-03-16T00:00:00.000Z', endDate: '2025-04-30T00:00:00.000Z', dependencies: [{ id: 'act-1.2.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
-  { id: 'wbs-1.3', parentId: 'eps-1', title: '3.0 Implementasi & Pengujian Fitur', description: 'Pengembangan frontend, integrasi, dan pengujian fitur.', status: 'To Do', priority: 'High', startDate: '2025-07-01T00:00:00.000Z', endDate: '2025-10-31T00:00:00.000Z', dependencies: [{ id: 'act-1.2.2', type: 'Finish-to-Start', lag: 0 }, { id: 'act-1.2.3', type: 'Finish-to-Start', lag: 0 }], type: 'WBS' },
-  { id: 'act-1.3.1', parentId: 'wbs-1.3', title: '3.1 Pengembangan UI/UX Frontend', description: 'Membangun antarmuka pengguna sesuai dengan desain.', status: 'To Do', priority: 'High', assigneeId: 'user-1', startDate: '2025-07-01T00:00:00.000Z', endDate: '2025-08-31T00:00:00.000Z', dependencies: [{ id: 'act-1.2.2', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
-  { id: 'act-1.3.2', parentId: 'wbs-1.3', title: '3.2 Pengujian Integrasi', description: 'Menguji integrasi antara frontend dan backend.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-09-01T00:00:00.000Z', endDate: '2025-09-30T00:00:00.000Z', dependencies: [{ id: 'act-1.3.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
-  { id: 'act-1.3.3', parentId: 'wbs-1.3', title: '3.3 Pengujian Penerimaan Pengguna (UAT)', description: 'Melibatkan pengguna akhir untuk pengujian beta.', status: 'To Do', priority: 'Medium', assigneeId: 'user-3', startDate: '2025-10-01T00:00:00.000Z', endDate: '2025-10-31T00:00:00.000Z', dependencies: [{ id: 'act-1.3.2', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
-  { id: 'wbs-1.4', parentId: 'eps-1', title: '4.0 Peluncuran & Pasca-Peluncuran', description: 'Persiapan peluncuran, rilis, dan dukungan awal.', status: 'To Do', priority: 'Urgent', startDate: '2025-11-01T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: [{ id: 'act-1.3.3', type: 'Finish-to-Start', lag: 0 }], type: 'WBS' },
-  { id: 'act-1.4.1', parentId: 'wbs-1.4', title: '4.1 Persiapan Infrastruktur Produksi', description: 'Menyiapkan server produksi dan melakukan hardening.', status: 'To Do', priority: 'Urgent', assigneeId: 'user-5', startDate: '2025-11-01T00:00:00.000Z', endDate: '2025-11-30T00:00:00.000Z', dependencies: [{ id: 'act-1.3.3', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
-  { id: 'milestone-1.4.2', parentId: 'wbs-1.4', title: 'Peluncuran Produk', description: 'Rilis resmi produk ke publik.', status: 'To Do', priority: 'Urgent', startDate: '2025-12-15T00:00:00.000Z', endDate: '2025-12-15T00:00:00.000Z', dependencies: [{ id: 'act-1.4.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
-  { id: 'act-1.4.3', parentId: 'wbs-1.4', title: '4.2 Dukungan Pasca-Peluncuran & Pemantauan', description: 'Memberikan dukungan dan memantau kinerja sistem.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-12-16T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: [{ id: 'milestone-1.4.2', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  // EPS
+  { id: 'eps-amdal', title: 'Proyek AMDAL Pembangunan Pabrik', description: 'Studi Analisis Mengenai Dampak Lingkungan untuk rencana pembangunan pabrik.', status: 'To Do', priority: 'Urgent', startDate: '2025-07-01T00:00:00.000Z', endDate: '2025-12-20T00:00:00.000Z', dependencies: [], type: 'EPS' },
+
+  // WBS 1: Persiapan dan Kerangka Acuan
+  { id: 'wbs-1', parentId: 'eps-amdal', title: '1.0 Tahap Persiapan & Penyusunan Kerangka Acuan (KA)', description: 'Fase awal meliputi persiapan administrasi, tim, dan penyusunan dokumen KA.', status: 'To Do', priority: 'High', startDate: '2025-07-01T00:00:00.000Z', endDate: '2025-07-31T00:00:00.000Z', dependencies: [], type: 'WBS' },
+  { id: 'act-1.1', parentId: 'wbs-1', title: '1.1 Kick-off Meeting dan Pembentukan Tim', description: 'Rapat awal dengan semua pemangku kepentingan dan pembentukan tim studi.', status: 'To Do', priority: 'High', assigneeId: 'user-3', startDate: '2025-07-01T09:00:00.000Z', endDate: '2025-07-03T17:00:00.000Z', dependencies: [], type: 'Activity' },
+  { id: 'act-1.2', parentId: 'wbs-1', title: '1.2 Pengumpulan Data Sekunder & Studi Pustaka', description: 'Mengumpulkan data awal, peta, dan regulasi yang relevan.', status: 'To Do', priority: 'Medium', assigneeId: 'user-2', startDate: '2025-07-04T09:00:00.000Z', endDate: '2025-07-11T17:00:00.000Z', dependencies: [{ id: 'act-1.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'act-1.3', parentId: 'wbs-1', title: '1.3 Penyusunan Draft Kerangka Acuan (KA)', description: 'Menyusun dokumen Kerangka Acuan untuk lingkup studi AMDAL.', status: 'To Do', priority: 'High', assigneeId: 'user-5', startDate: '2025-07-14T09:00:00.000Z', endDate: '2025-07-25T17:00:00.000Z', dependencies: [{ id: 'act-1.2', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'milestone-1', parentId: 'wbs-1', title: 'Persetujuan Kerangka Acuan (KA)', description: 'Mendapatkan persetujuan resmi atas dokumen KA dari komisi penilai.', status: 'To Do', priority: 'Urgent', startDate: '2025-07-31T17:00:00.000Z', endDate: '2025-07-31T17:00:00.000Z', dependencies: [{ id: 'act-1.3', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+
+  // WBS 2: Pengumpulan Data Primer
+  { id: 'wbs-2', parentId: 'eps-amdal', title: '2.0 Tahap Pengumpulan Data Primer', description: 'Survei dan pengambilan sampel di lokasi proyek.', status: 'To Do', priority: 'High', startDate: '2025-08-01T00:00:00.000Z', endDate: '2025-08-29T00:00:00.000Z', dependencies: [{ id: 'milestone-1', type: 'Finish-to-Start', lag: 0 }], type: 'WBS' },
+  { id: 'act-2.1', parentId: 'wbs-2', title: '2.1 Survei Komponen Geofisika-Kimia', description: 'Pengambilan sampel air, udara, dan tanah.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-08-01T09:00:00.000Z', endDate: '2025-08-15T17:00:00.000Z', dependencies: [{ id: 'milestone-1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'act-2.2', parentId: 'wbs-2', title: '2.2 Survei Komponen Biologi', description: 'Inventarisasi flora dan fauna di sekitar lokasi proyek.', status: 'To Do', priority: 'High', assigneeId: 'user-1', startDate: '2025-08-04T09:00:00.000Z', endDate: '2025-08-18T17:00:00.000Z', dependencies: [{ id: 'milestone-1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'act-2.3', parentId: 'wbs-2', title: '2.3 Survei Sosial, Ekonomi, dan Budaya', description: 'Wawancara dengan masyarakat dan pemangku kepentingan.', status: 'To Do', priority: 'High', assigneeId: 'user-3', startDate: '2025-08-11T09:00:00.000Z', endDate: '2025-08-29T17:00:00.000Z', dependencies: [{ id: 'milestone-1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+
+  // WBS 3: Analisis dan Evaluasi Dampak
+  { id: 'wbs-3', parentId: 'eps-amdal', title: '3.0 Analisis Data & Evaluasi Dampak', description: 'Analisis data laboratorium dan evaluasi potensi dampak penting.', status: 'To Do', priority: 'High', startDate: '2025-09-01T00:00:00.000Z', endDate: '2025-10-17T00:00:00.000Z', dependencies: [{ id: 'act-2.1', type: 'Finish-to-Start', lag: 0 }, { id: 'act-2.2', type: 'Finish-to-Start', lag: 0 }, { id: 'act-2.3', type: 'Finish-to-Start', lag: 0 }], type: 'WBS' },
+  { id: 'act-3.1', parentId: 'wbs-3', title: '3.1 Analisis Laboratorium Sampel', description: 'Analisis hasil sampel air, udara, dan tanah di laboratorium.', status: 'To Do', priority: 'High', assigneeId: 'user-2', startDate: '2025-09-01T09:00:00.000Z', endDate: '2025-09-19T17:00:00.000Z', dependencies: [{ id: 'act-2.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'act-3.2', parentId: 'wbs-3', title: '3.2 Prakiraan & Evaluasi Dampak Penting', description: 'Menganalisis dan mengevaluasi besaran dan sifat dampak.', status: 'To Do', priority: 'Urgent', assigneeId: 'user-5', startDate: '2025-09-22T09:00:00.000Z', endDate: '2025-10-10T17:00:00.000Z', dependencies: [{ id: 'act-3.1', type: 'Finish-to-Start', lag: 0 }, { id: 'act-2.3', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'act-3.3', parentId: 'wbs-3', title: '3.3 Evaluasi Holistik Dampak', description: 'Evaluasi dampak secara keseluruhan sebagai satu kesatuan.', status: 'To Do', priority: 'High', assigneeId: 'user-3', startDate: '2025-10-13T09:00:00.000Z', endDate: '2025-10-17T17:00:00.000Z', dependencies: [{ id: 'act-3.2', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  
+  // WBS 4: Penyusunan Laporan dan Finalisasi
+  { id: 'wbs-4', parentId: 'eps-amdal', title: '4.0 Penyusunan Laporan & Finalisasi', description: 'Menyusun dokumen ANDAL, RKL, dan RPL serta asistensi.', status: 'To Do', priority: 'Urgent', startDate: '2025-10-20T00:00:00.000Z', endDate: '2025-12-20T00:00:00.000Z', dependencies: [{ id: 'act-3.3', type: 'Finish-to-Start', lag: 0 }], type: 'WBS' },
+  { id: 'act-4.1', parentId: 'wbs-4', title: '4.1 Penyusunan Draft Dokumen ANDAL', description: 'Menyusun laporan Analisis Dampak Lingkungan.', status: 'To Do', priority: 'High', assigneeId: 'user-5', startDate: '2025-10-20T09:00:00.000Z', endDate: '2025-11-14T17:00:00.000Z', dependencies: [{ id: 'act-3.3', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'act-4.2', parentId: 'wbs-4', title: '4.2 Penyusunan Draft RKL-RPL', description: 'Menyusun Rencana Pengelolaan dan Pemantauan Lingkungan.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-10-27T09:00:00.000Z', endDate: '2025-11-21T17:00:00.000Z', dependencies: [{ id: 'act-3.3', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'act-4.3', parentId: 'wbs-4', title: '4.3 Asistensi & Pembahasan Laporan', description: 'Pembahasan draft laporan dengan komisi penilai AMDAL.', status: 'To Do', priority: 'Urgent', assigneeId: 'user-3', startDate: '2025-11-24T09:00:00.000Z', endDate: '2025-12-12T17:00:00.000Z', dependencies: [{ id: 'act-4.1', type: 'Finish-to-Start', lag: 0 }, { id: 'act-4.2', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'milestone-2', parentId: 'wbs-4', title: 'Penyerahan Laporan Final', description: 'Penyerahan dokumen final ANDAL dan RKL-RPL yang telah direvisi.', status: 'To Do', priority: 'Urgent', startDate: '2025-12-19T17:00:00.000Z', endDate: '2025-12-19T17:00:00.000Z', dependencies: [{ id: 'act-4.3', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
 ];
 
 type Node = {
@@ -499,6 +510,16 @@ const GanttChart = () => {
     let secondaryHeaderDates: Date[] = [];
     let totalUnits = 0;
 
+    const validTasks = allTasks.filter(t => isValid(parseISO(t.startDate)) && isValid(parseISO(t.endDate)));
+    if (validTasks.length === 0) {
+      interval = { start: startOfYear(new Date()), end: endOfYear(new Date()) };
+    } else {
+       const minDate = new Date(Math.min(...validTasks.map(t => parseISO(t.startDate).getTime())));
+       const maxDate = new Date(Math.max(...validTasks.map(t => parseISO(t.endDate).getTime())));
+       interval = { start: startOfYear(minDate), end: endOfYear(maxDate) };
+    }
+
+
     switch (timeScale) {
       case "Hour": {
         interval = { start: startOfDay(currentDate), end: endOfDay(currentDate) };
@@ -512,10 +533,6 @@ const GanttChart = () => {
         break;
       }
       case "Day": {
-        const yearStart = startOfYear(currentDate);
-        const yearEnd = endOfYear(currentDate);
-        interval = { start: yearStart, end: yearEnd };
-
         secondaryHeaderDates = eachDayOfInterval(interval);
         totalUnits = secondaryHeaderDates.length;
         const months = eachMonthOfInterval(interval);
@@ -532,11 +549,10 @@ const GanttChart = () => {
         break;
       }
       case "Week": {
-        const yearStart = startOfYear(currentDate);
-        const yearEnd = endOfYear(currentDate);
-        interval = { start: startOfWeek(yearStart, { weekStartsOn: 1 }), end: endOfWeek(yearEnd, { weekStartsOn: 1 }) };
+        interval = { start: startOfWeek(interval.start, { weekStartsOn: 1 }), end: endOfWeek(interval.end, { weekStartsOn: 1 }) };
         
         const weeksInInterval = eachWeekOfInterval(interval, { weekStartsOn: 1 });
+        secondaryHeaderDates = weeksInInterval;
         totalUnits = weeksInInterval.length;
         secondaryHeader = weeksInInterval.map(weekStart => ({ label: `W${getISOWeek(weekStart)}`, units: 1 }));
 
@@ -550,33 +566,36 @@ const GanttChart = () => {
         break;
       }
       case "Month": {
-        const yearStart = startOfYear(currentDate);
-        const yearEnd = endOfYear(currentDate);
-        interval = { start: yearStart, end: yearEnd };
-        
-        secondaryHeader = eachMonthOfInterval(interval).map(monthStart => ({
+        secondaryHeaderDates = eachMonthOfInterval(interval);
+        totalUnits = secondaryHeaderDates.length;
+        secondaryHeader = secondaryHeaderDates.map(monthStart => ({
             label: format(monthStart, 'MMM'),
             units: 1
         }));
-        totalUnits = secondaryHeader.length;
         
-        primaryHeader = eachYearOfInterval(interval).map(yearStart => ({
-            label: format(yearStart, 'yyyy'),
-            units: 12
-        }));
+        const years = eachYearOfInterval(interval);
+        primaryHeader = years.map(yearStart => {
+          const yearEnd = endOfYear(yearStart);
+          const start = new Date(Math.max(interval.start.getTime(), yearStart.getTime()));
+          const end = new Date(Math.min(interval.end.getTime(), yearEnd.getTime()));
+          const monthsInYear = differenceInMonths(end, start) + 1;
+          return { label: format(yearStart, 'yyyy'), units: monthsInYear > 0 ? monthsInYear : 1 };
+        });
+
         break;
       }
       case "Year": {
-        const fiveYearStart = startOfYear(subYears(currentDate, 2));
-        const fiveYearEnd = endOfYear(addYears(currentDate, 2));
-        interval = { start: fiveYearStart, end: fiveYearEnd };
+        const startYear = startOfYear(subYears(interval.start, 2));
+        const endYear = endOfYear(addYears(interval.end, 2));
+        interval = { start: startYear, end: endYear };
 
-        secondaryHeader = eachYearOfInterval(interval).map(year => ({ 
+        secondaryHeaderDates = eachYearOfInterval(interval);
+        totalUnits = secondaryHeaderDates.length;
+        secondaryHeader = secondaryHeaderDates.map(year => ({ 
             label: format(year, 'yyyy'), 
             units: 1 
         }));
-        totalUnits = secondaryHeader.length;
-        primaryHeader = [{ label: 'Years', units: totalUnits }];
+        primaryHeader = [{ label: `Decade ${format(interval.start, 'yy')} - ${format(interval.end, 'yy')}`, units: totalUnits }];
         break;
       }
     }
@@ -591,7 +610,7 @@ const GanttChart = () => {
       totalUnits,
       timelineWidth: finalTimelineWidth,
     };
-  }, [timeScale, currentDate, cellWidth]);
+  }, [timeScale, currentDate, cellWidth, allTasks]);
   
   const getUnitWidth = useCallback(() => {
     return cellWidth;
@@ -600,21 +619,41 @@ const GanttChart = () => {
   const getPositionFromDate = useCallback((date: Date) => {
       if (!isValid(date)) return 0;
       switch (timeScale) {
-        case 'Hour': return differenceInMinutes(date, interval.start) * (getUnitWidth() / 60);
+        case 'Hour': return differenceInMinutes(date, interval.start) / 60 * getUnitWidth();
         case 'Day': return differenceInDays(date, interval.start) * getUnitWidth();
-        case 'Week': return Math.floor(differenceInDays(date, interval.start) / 7) * getUnitWidth();
-        case 'Month': return differenceInMonths(date, interval.start) * getUnitWidth();
-        case 'Year': return differenceInMonths(date, startOfYear(interval.start)) / 12 * getUnitWidth();
+        case 'Week': {
+            const days = differenceInDays(date, interval.start);
+            return (days / 7) * getUnitWidth();
+        }
+        case 'Month': {
+          const fullMonths = differenceInMonths(date, interval.start);
+          const monthStart = addMonths(interval.start, fullMonths);
+          const daysInMonth = differenceInDays(endOfMonth(monthStart), startOfMonth(monthStart)) + 1;
+          const remainingDays = differenceInDays(date, monthStart);
+          return (fullMonths + remainingDays / daysInMonth) * getUnitWidth();
+        }
+        case 'Year': {
+          const fullYears = differenceInMonths(date, interval.start) / 12;
+          return fullYears * getUnitWidth();
+        }
         default: return 0;
       }
   }, [timeScale, interval.start, getUnitWidth]);
   
   const getDateFromPosition = useCallback((x: number) => {
     switch (timeScale) {
-      case 'Hour': return addMinutes(interval.start, x / (getUnitWidth() / 60));
+      case 'Hour': return addMinutes(interval.start, (x / getUnitWidth()) * 60);
       case 'Day': return addDays(interval.start, x / getUnitWidth());
       case 'Week': return addDays(interval.start, (x / getUnitWidth()) * 7);
-      case 'Month': return addMonths(interval.start, x / getUnitWidth());
+      case 'Month': {
+        const totalMonths = x / getUnitWidth();
+        const fullMonths = Math.floor(totalMonths);
+        const partialMonth = totalMonths - fullMonths;
+        const monthStart = addMonths(interval.start, fullMonths);
+        const daysInMonth = differenceInDays(endOfMonth(monthStart), startOfMonth(monthStart)) + 1;
+        const daysToAdd = Math.round(partialMonth * daysInMonth);
+        return addDays(monthStart, daysToAdd);
+      }
       case 'Year': return addMonths(interval.start, (x / getUnitWidth()) * 12);
       default: return interval.start;
     }
@@ -629,26 +668,24 @@ const GanttChart = () => {
       return { left: 0, width: 0};
     }
 
-    const isMilestone = taskStartDate.getTime() === taskEndDate.getTime();
+    const isMilestone = task.startDate === task.endDate;
     
     const left = getPositionFromDate(taskStartDate);
-    // For non-milestone tasks in Day scale or larger, we ensure they have a minimum visual duration.
-    // For Hour scale, we use the precise end time.
-    const effectiveEndDate = (timeScale !== 'Hour' && !isMilestone) ? addDays(taskEndDate, 1) : taskEndDate;
+    
+    const effectiveEndDate = isMilestone ? taskEndDate : addDays(taskEndDate, 1);
     const end = getPositionFromDate(effectiveEndDate);
 
     let width = end - left;
 
     if (isMilestone) {
         width = 0; // Milestones have no width, they are a point in time
-    } else if (timeScale !== 'Hour' && width < getUnitWidth()/10) {
-        // Ensure a minimum visual width for very short tasks on larger scales
-        width = getUnitWidth() / 10;
+    } else if (width < 2) {
+        width = 2; // Ensure a minimum visual width
     }
     
     return { left, width };
 
-  }, [getPositionFromDate, getUnitWidth, timeScale]);
+  }, [getPositionFromDate, timeScale, interval]);
 
 
   const startResizing = useCallback((e: React.MouseEvent) => {
@@ -703,9 +740,8 @@ const GanttChart = () => {
     if (!ganttContainerRef.current) return;
     const rect = ganttContainerRef.current.getBoundingClientRect();
     const scrollLeft = ganttContainerRef.current.scrollLeft;
-    const scrollTop = ganttContainerRef.current.scrollTop; // We might need this for vertical scroll
+    const scrollTop = ganttContainerRef.current.scrollTop;
     
-    // Calculate start positions relative to the scrollable container's content
     const startX = e.clientX - rect.left + scrollLeft;
     const startY = e.clientY - rect.top + scrollTop;
 
@@ -724,26 +760,29 @@ const GanttChart = () => {
     if (draggingInfo) {
       const dx = e.clientX - draggingInfo.initialX;
       
-      const startPos = getPositionFromDate(draggingInfo.initialStartDate);
-      const endPos = getPositionFromDate(draggingInfo.initialEndDate);
+      let finalStartDate: Date;
+      let finalEndDate: Date;
 
-      const newStartDate = getDateFromPosition(startPos + dx);
-      const newEndDate = getDateFromPosition(endPos + dx);
-
-      const durationInMinutes = differenceInMinutes(draggingInfo.initialEndDate, draggingInfo.initialStartDate);
-
-      let finalStartDate = draggingInfo.initialStartDate;
-      let finalEndDate = draggingInfo.initialEndDate;
-      
       if (draggingInfo.action === 'move') {
-          finalStartDate = newStartDate;
-          finalEndDate = addMinutes(newStartDate, durationInMinutes);
-      } else if (draggingInfo.action === 'resize-end') {
-          finalEndDate = newEndDate;
-          if (finalEndDate < finalStartDate) finalEndDate = finalStartDate;
-      } else if (draggingInfo.action === 'resize-start') {
-          finalStartDate = newStartDate;
-          if (finalStartDate > finalEndDate) finalStartDate = finalEndDate;
+          const startPos = getPositionFromDate(draggingInfo.initialStartDate);
+          const newStartPos = startPos + dx;
+          finalStartDate = getDateFromPosition(newStartPos);
+          const duration = differenceInMinutes(draggingInfo.initialEndDate, draggingInfo.initialStartDate);
+          finalEndDate = addMinutes(finalStartDate, duration);
+      } else {
+          finalStartDate = draggingInfo.initialStartDate;
+          finalEndDate = draggingInfo.initialEndDate;
+          if (draggingInfo.action === 'resize-end') {
+              const endPos = getPositionFromDate(draggingInfo.initialEndDate);
+              const newEndPos = endPos + dx;
+              finalEndDate = getDateFromPosition(newEndPos);
+              if (finalEndDate < finalStartDate) finalEndDate = finalStartDate;
+          } else { // resize-start
+              const startPos = getPositionFromDate(draggingInfo.initialStartDate);
+              const newStartPos = startPos + dx;
+              finalStartDate = getDateFromPosition(newStartPos);
+              if (finalStartDate > finalEndDate) finalStartDate = finalEndDate;
+          }
       }
 
       setAllTasks(prevTasks => prevTasks.map(t => {
@@ -759,7 +798,7 @@ const GanttChart = () => {
     } else if (newDependency && ganttContainerRef.current) {
         const rect = ganttContainerRef.current.getBoundingClientRect();
         const endX = e.clientX - rect.left + ganttContainerRef.current.scrollLeft;
-        const endY = e.clientY - rect.top + ganttContainerref.current.scrollTop;
+        const endY = e.clientY - rect.top + ganttContainerRef.current.scrollTop;
         setNewDependency(prev => prev ? { ...prev, endX, endY } : null);
     }
   }, [draggingInfo, getPositionFromDate, getDateFromPosition, newDependency]);
@@ -1008,7 +1047,7 @@ const GanttChart = () => {
 
                 {/* Today Marker */}
                 {todayPositionX !== -1 && (
-                  <div className="absolute top-0 h-full w-px bg-primary z-20" style={{ left: `${todayPositionX}` }}>
+                  <div className="absolute top-0 h-full w-px bg-primary z-20" style={{ left: `${todayPositionX}px` }}>
                     <div className="absolute -top-1 -translate-x-1/2 left-1/2 bg-primary text-primary-foreground text-xs font-bold rounded-full px-1.5 py-0.5">
                       Today
                     </div>
@@ -1049,7 +1088,7 @@ const GanttChart = () => {
                       const toX = toPosition.left;
                       
                       const startPointX = fromX;
-                      const endPointX = toX - (toIsMilestone ? 6 : 8); // smaller offset for milestone diamond
+                      const endPointX = toIsMilestone ? toX - 6 : toX - 8; // smaller offset for milestone diamond
                       const connectorOffset = 20;
 
                       if (endPointX < startPointX + connectorOffset) {
@@ -1063,7 +1102,6 @@ const GanttChart = () => {
                                fill="none"
                                markerEnd={isCritical ? "url(#arrowhead-critical)" : "url(#arrowhead)"}
                                markerStart={isCritical ? "url(#line-dot-critical)" : "url(#line-dot)"}
-                               markerMid={isCritical ? "url(#line-dot-critical)" : "url(#line-dot)"}
                              />
                            )
                       }
@@ -1077,7 +1115,6 @@ const GanttChart = () => {
                           fill="none"
                           markerEnd={isCritical ? "url(#arrowhead-critical)" : "url(#arrowhead)"}
                           markerStart={isCritical ? "url(#line-dot-critical)" : "url(#line-dot)"}
-                          markerMid={isCritical ? "url(#line-dot-critical)" : "url(#line-dot)"}
                         />
                       )
                     })
@@ -1100,7 +1137,7 @@ const GanttChart = () => {
                 {/* Task Bars & Milestones */}
                 {tasks.map((task, index) => {
                   const { left, width } = getTaskPosition(task.startDate, task.endDate);
-                  if (width < 0) return null; // Don't render if width is negative
+                  if (width < 0 && task.startDate !== task.endDate) return null;
                   const progress = statusProgress[task.status] || 0;
                   const isSummary = task.type !== 'Activity';
                   const isMilestone = task.startDate === task.endDate;
