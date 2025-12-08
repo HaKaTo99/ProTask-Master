@@ -41,7 +41,7 @@ import {
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import type { Task, TeamMember } from "@/lib/types";
+import type { Task, TeamMember, Dependency } from "@/lib/types";
 import { ChevronRight, Diamond, Layers, Triangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -53,20 +53,20 @@ const initialTasksData: Task[] = [
   { id: 'eps-1', title: 'Proyek Unggulan 2025', description: 'Proyek utama untuk tahun 2025.', status: 'To Do', priority: 'Urgent', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: [], type: 'EPS' },
   { id: 'wbs-1.1', parentId: 'eps-1', title: '1.0 Perencanaan & Desain', description: 'Fase awal untuk riset, perencanaan, dan desain arsitektur.', status: 'To Do', priority: 'High', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-02-28T00:00:00.000Z', dependencies: [], type: 'WBS' },
   { id: 'act-1.1.1', parentId: 'wbs-1.1', title: '1.1 Riset Pasar & Analisis Kebutuhan', description: 'Menganalisis target pasar dan kebutuhan pengguna.', status: 'To Do', priority: 'High', assigneeId: 'user-3', startDate: '2025-01-01T00:00:00.000Z', endDate: '2025-01-31T00:00:00.000Z', dependencies: [], type: 'Activity' },
-  { id: 'act-1.1.2', parentId: 'wbs-1.1', title: '1.2 Desain Arsitektur Sistem', description: 'Merancang arsitektur teknis dan model data.', status: 'To Do', priority: 'High', assigneeId: 'user-5', startDate: '2025-02-01T00:00:00.000Z', endDate: '2025-02-28T00:00:00.000Z', dependencies: ['act-1.1.1'], type: 'Activity' },
-  { id: 'milestone-1.1.3', parentId: 'wbs-1.1', title: 'Persetujuan Desain Arsitektur', description: 'Persetujuan akhir untuk desain arsitektur.', status: 'To Do', priority: 'Urgent', startDate: '2025-02-28T00:00:00.000Z', endDate: '2025-02-28T00:00:00.000Z', dependencies: ['act-1.1.2'], type: 'Activity' },
-  { id: 'wbs-1.2', parentId: 'eps-1', title: '2.0 Pengembangan Inti', description: 'Pengembangan backend dan infrastruktur dasar.', status: 'To Do', priority: 'High', startDate: '2025-03-01T00:00:00.000Z', endDate: '2025-06-30T00:00:00.000Z', dependencies: ['milestone-1.1.3'], type: 'WBS' },
-  { id: 'act-1.2.1', parentId: 'wbs-1.2', title: '2.1 Pengaturan Lingkungan Pengembangan', description: 'Menyiapkan repositori, CI/CD, dan cloud environment.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-03-01T00:00:00.000Z', endDate: '2025-03-15T00:00:00.000Z', dependencies: ['milestone-1.1.3'], type: 'Activity' },
-  { id: 'act-1.2.2', parentId: 'wbs-1.2', title: '2.2 Pengembangan API Backend', description: 'Membangun endpoint API utama untuk aplikasi.', status: 'To Do', priority: 'Urgent', assigneeId: 'user-5', startDate: '2025-03-16T00:00:00.000Z', endDate: '2025-05-31T00:00:00.000Z', dependencies: ['act-1.2.1'], type: 'Activity' },
-  { id: 'act-1.2.3', parentId: 'wbs-1.2', title: '2.3 Implementasi Skema Database', description: 'Menerapkan model data ke dalam database.', status: 'To Do', priority: 'High', assigneeId: 'user-2', startDate: '2025-03-16T00:00:00.000Z', endDate: '2025-04-30T00:00:00.000Z', dependencies: ['act-1.2.1'], type: 'Activity' },
-  { id: 'wbs-1.3', parentId: 'eps-1', title: '3.0 Implementasi & Pengujian Fitur', description: 'Pengembangan frontend, integrasi, dan pengujian fitur.', status: 'To Do', priority: 'High', startDate: '2025-07-01T00:00:00.000Z', endDate: '2025-10-31T00:00:00.000Z', dependencies: ['act-1.2.2', 'act-1.2.3'], type: 'WBS' },
-  { id: 'act-1.3.1', parentId: 'wbs-1.3', title: '3.1 Pengembangan UI/UX Frontend', description: 'Membangun antarmuka pengguna sesuai dengan desain.', status: 'To Do', priority: 'High', assigneeId: 'user-1', startDate: '2025-07-01T00:00:00.000Z', endDate: '2025-08-31T00:00:00.000Z', dependencies: ['act-1.2.2'], type: 'Activity' },
-  { id: 'act-1.3.2', parentId: 'wbs-1.3', title: '3.2 Pengujian Integrasi', description: 'Menguji integrasi antara frontend dan backend.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-09-01T00:00:00.000Z', endDate: '2025-09-30T00:00:00.000Z', dependencies: ['act-1.3.1'], type: 'Activity' },
-  { id: 'act-1.3.3', parentId: 'wbs-1.3', title: '3.3 Pengujian Penerimaan Pengguna (UAT)', description: 'Melibatkan pengguna akhir untuk pengujian beta.', status: 'To Do', priority: 'Medium', assigneeId: 'user-3', startDate: '2025-10-01T00:00:00.000Z', endDate: '2025-10-31T00:00:00.000Z', dependencies: ['act-1.3.2'], type: 'Activity' },
-  { id: 'wbs-1.4', parentId: 'eps-1', title: '4.0 Peluncuran & Pasca-Peluncuran', description: 'Persiapan peluncuran, rilis, dan dukungan awal.', status: 'To Do', priority: 'Urgent', startDate: '2025-11-01T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: ['act-1.3.3'], type: 'WBS' },
-  { id: 'act-1.4.1', parentId: 'wbs-1.4', title: '4.1 Persiapan Infrastruktur Produksi', description: 'Menyiapkan server produksi dan melakukan hardening.', status: 'To Do', priority: 'Urgent', assigneeId: 'user-5', startDate: '2025-11-01T00:00:00.000Z', endDate: '2025-11-30T00:00:00.000Z', dependencies: ['act-1.3.3'], type: 'Activity' },
-  { id: 'milestone-1.4.2', parentId: 'wbs-1.4', title: 'Peluncuran Produk', description: 'Rilis resmi produk ke publik.', status: 'To Do', priority: 'Urgent', startDate: '2025-12-15T00:00:00.000Z', endDate: '2025-12-15T00:00:00.000Z', dependencies: ['act-1.4.1'], type: 'Activity' },
-  { id: 'act-1.4.3', parentId: 'wbs-1.4', title: '4.2 Dukungan Pasca-Peluncuran & Pemantauan', description: 'Memberikan dukungan dan memantau kinerja sistem.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-12-16T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: ['milestone-1.4.2'], type: 'Activity' },
+  { id: 'act-1.1.2', parentId: 'wbs-1.1', title: '1.2 Desain Arsitektur Sistem', description: 'Merancang arsitektur teknis dan model data.', status: 'To Do', priority: 'High', assigneeId: 'user-5', startDate: '2025-02-01T00:00:00.000Z', endDate: '2025-02-28T00:00:00.000Z', dependencies: [{ id: 'act-1.1.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'milestone-1.1.3', parentId: 'wbs-1.1', title: 'Persetujuan Desain Arsitektur', description: 'Persetujuan akhir untuk desain arsitektur.', status: 'To Do', priority: 'Urgent', startDate: '2025-02-28T00:00:00.000Z', endDate: '2025-02-28T00:00:00.000Z', dependencies: [{ id: 'act-1.1.2', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'wbs-1.2', parentId: 'eps-1', title: '2.0 Pengembangan Inti', description: 'Pengembangan backend dan infrastruktur dasar.', status: 'To Do', priority: 'High', startDate: '2025-03-01T00:00:00.000Z', endDate: '2025-06-30T00:00:00.000Z', dependencies: [{ id: 'milestone-1.1.3', type: 'Finish-to-Start', lag: 0 }], type: 'WBS' },
+  { id: 'act-1.2.1', parentId: 'wbs-1.2', title: '2.1 Pengaturan Lingkungan Pengembangan', description: 'Menyiapkan repositori, CI/CD, dan cloud environment.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-03-01T00:00:00.000Z', endDate: '2025-03-15T00:00:00.000Z', dependencies: [{ id: 'milestone-1.1.3', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'act-1.2.2', parentId: 'wbs-1.2', title: '2.2 Pengembangan API Backend', description: 'Membangun endpoint API utama untuk aplikasi.', status: 'To Do', priority: 'Urgent', assigneeId: 'user-5', startDate: '2025-03-16T00:00:00.000Z', endDate: '2025-05-31T00:00:00.000Z', dependencies: [{ id: 'act-1.2.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'act-1.2.3', parentId: 'wbs-1.2', title: '2.3 Implementasi Skema Database', description: 'Menerapkan model data ke dalam database.', status: 'To Do', priority: 'High', assigneeId: 'user-2', startDate: '2025-03-16T00:00:00.000Z', endDate: '2025-04-30T00:00:00.000Z', dependencies: [{ id: 'act-1.2.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'wbs-1.3', parentId: 'eps-1', title: '3.0 Implementasi & Pengujian Fitur', description: 'Pengembangan frontend, integrasi, dan pengujian fitur.', status: 'To Do', priority: 'High', startDate: '2025-07-01T00:00:00.000Z', endDate: '2025-10-31T00:00:00.000Z', dependencies: [{ id: 'act-1.2.2', type: 'Finish-to-Start', lag: 0 }, { id: 'act-1.2.3', type: 'Finish-to-Start', lag: 0 }], type: 'WBS' },
+  { id: 'act-1.3.1', parentId: 'wbs-1.3', title: '3.1 Pengembangan UI/UX Frontend', description: 'Membangun antarmuka pengguna sesuai dengan desain.', status: 'To Do', priority: 'High', assigneeId: 'user-1', startDate: '2025-07-01T00:00:00.000Z', endDate: '2025-08-31T00:00:00.000Z', dependencies: [{ id: 'act-1.2.2', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'act-1.3.2', parentId: 'wbs-1.3', title: '3.2 Pengujian Integrasi', description: 'Menguji integrasi antara frontend dan backend.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-09-01T00:00:00.000Z', endDate: '2025-09-30T00:00:00.000Z', dependencies: [{ id: 'act-1.3.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'act-1.3.3', parentId: 'wbs-1.3', title: '3.3 Pengujian Penerimaan Pengguna (UAT)', description: 'Melibatkan pengguna akhir untuk pengujian beta.', status: 'To Do', priority: 'Medium', assigneeId: 'user-3', startDate: '2025-10-01T00:00:00.000Z', endDate: '2025-10-31T00:00:00.000Z', dependencies: [{ id: 'act-1.3.2', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'wbs-1.4', parentId: 'eps-1', title: '4.0 Peluncuran & Pasca-Peluncuran', description: 'Persiapan peluncuran, rilis, dan dukungan awal.', status: 'To Do', priority: 'Urgent', startDate: '2025-11-01T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: [{ id: 'act-1.3.3', type: 'Finish-to-Start', lag: 0 }], type: 'WBS' },
+  { id: 'act-1.4.1', parentId: 'wbs-1.4', title: '4.1 Persiapan Infrastruktur Produksi', description: 'Menyiapkan server produksi dan melakukan hardening.', status: 'To Do', priority: 'Urgent', assigneeId: 'user-5', startDate: '2025-11-01T00:00:00.000Z', endDate: '2025-11-30T00:00:00.000Z', dependencies: [{ id: 'act-1.3.3', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'milestone-1.4.2', parentId: 'wbs-1.4', title: 'Peluncuran Produk', description: 'Rilis resmi produk ke publik.', status: 'To Do', priority: 'Urgent', startDate: '2025-12-15T00:00:00.000Z', endDate: '2025-12-15T00:00:00.000Z', dependencies: [{ id: 'act-1.4.1', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
+  { id: 'act-1.4.3', parentId: 'wbs-1.4', title: '4.2 Dukungan Pasca-Peluncuran & Pemantauan', description: 'Memberikan dukungan dan memantau kinerja sistem.', status: 'To Do', priority: 'High', assigneeId: 'user-4', startDate: '2025-12-16T00:00:00.000Z', endDate: '2025-12-31T00:00:00.000Z', dependencies: [{ id: 'milestone-1.4.2', type: 'Finish-to-Start', lag: 0 }], type: 'Activity' },
 ];
 
 type Node = {
@@ -232,15 +232,13 @@ const GanttChart = () => {
 
   const handleCreateDependency = (sourceId: string, targetId: string) => {
     setAllTasks(prevTasks => {
-        // Prevent adding self-dependency or duplicate dependency
         const sourceTask = prevTasks.find(t => t.id === sourceId);
         const targetTask = prevTasks.find(t => t.id === targetId);
 
-        if (!sourceTask || !targetTask || targetId === sourceId || targetTask.dependencies.includes(sourceId)) {
-          return prevTasks;
+        if (!sourceTask || !targetTask || targetId === sourceId || targetTask.dependencies.some(d => d.id === sourceId)) {
+            return prevTasks;
         }
-        
-        // Circular dependency check
+
         const visited = new Set<string>();
         const stack = [sourceId];
         while (stack.length > 0) {
@@ -250,21 +248,22 @@ const GanttChart = () => {
 
             const currentTask = prevTasks.find(t => t.id === currentId);
             if (!currentTask) continue;
-
+            
             if(currentTask.id === targetId) return prevTasks; // Circular dependency found
 
-            for (const depId of currentTask.dependencies) {
-                stack.push(depId);
+            for (const dep of currentTask.dependencies) {
+                stack.push(dep.id);
             }
         }
-
+        
+        const newDependency: Dependency = { id: sourceId, type: 'Finish-to-Start', lag: 0 };
         return prevTasks.map(task => 
             task.id === targetId 
-            ? { ...task, dependencies: [...task.dependencies, sourceId] }
+            ? { ...task, dependencies: [...task.dependencies, newDependency] }
             : task
         );
     });
-  }
+}
 
   const setBaseline = () => {
     setAllTasks(prevTasks => 
@@ -358,7 +357,7 @@ const GanttChart = () => {
                 // If no dependencies, early start is its own start date relative to project start
                  calc.es = differenceInDays(parseISO(task.startDate), projectStartDate);
             } else {
-                const maxEF = Math.max(...task.dependencies.map(depId => taskCalculations.get(depId)?.ef || 0));
+                const maxEF = Math.max(...task.dependencies.map(dep => taskCalculations.get(dep.id)?.ef || 0));
                 calc.es = maxEF;
             }
             calc.ef = calc.es + calc.duration;
@@ -370,7 +369,7 @@ const GanttChart = () => {
         const reversedTasks = [...validTasks].reverse();
         reversedTasks.forEach(task => {
             const calc = taskCalculations.get(task.id)!;
-            const successors = validTasks.filter(t => t.dependencies.includes(task.id));
+            const successors = validTasks.filter(t => t.dependencies.some(d => d.id === task.id));
 
             if (successors.length === 0) {
                 calc.lf = projectEndDateVal;
@@ -883,7 +882,7 @@ const GanttChart = () => {
                         onSave={(newDate) => handleUpdateTaskDate(task.id, 'endDate', newDate)}
                       />
                     </TableCell>
-                    <TableCell className="text-muted-foreground truncate">{task.dependencies.join(', ')}</TableCell>
+                    <TableCell className="text-muted-foreground truncate">{task.dependencies.map(d => d.id).join(', ')}</TableCell>
                     <TableCell className="text-muted-foreground">{`${statusProgress[task.status] || 0}%`}</TableCell>
                   </TableRow>
                 ))}
@@ -983,8 +982,8 @@ const GanttChart = () => {
                   </defs>
                   {/* Existing Dependencies */}
                   {tasks.map((task) => 
-                    task.dependencies.map(depId => {
-                      const fromNode = nodeMap.get(depId);
+                    task.dependencies.map(dep => {
+                      const fromNode = nodeMap.get(dep.id);
                       const toNode = nodeMap.get(task.id);
                       if (!fromNode || !toNode || !isValid(fromNode.endDate) || !isValid(toNode.startDate)) return null;
 
@@ -1002,7 +1001,7 @@ const GanttChart = () => {
                            // Complex path for wrapping around
                            return (
                              <path
-                               key={`${depId}-${task.id}`}
+                               key={`${dep.id}-${task.id}`}
                                d={`M ${startPointX} ${fromNode.y} H ${startPointX + connectorOffset} V ${(fromNode.y + toNode.y) / 2} H ${endPointX - connectorOffset} V ${toNode.y} H ${endPointX}`}
                                stroke={isCritical ? "hsl(var(--accent))" : "hsl(var(--muted-foreground) / 0.5)"}
                                strokeWidth="1.5"
@@ -1016,7 +1015,7 @@ const GanttChart = () => {
                       
                       return (
                         <path 
-                          key={`${depId}-${task.id}`}
+                          key={`${dep.id}-${task.id}`}
                           d={`M ${startPointX} ${fromNode.y} H ${startPointX + connectorOffset} V ${toNode.y} H ${endPointX}`}
                           stroke={isCritical ? "hsl(var(--accent))" : "hsl(var(--muted-foreground) / 0.5)"}
                           strokeWidth="1.5"

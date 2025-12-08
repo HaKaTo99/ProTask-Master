@@ -9,6 +9,15 @@ export type TeamMember = {
   currentWorkload: number;
 };
 
+export type DependencyType = 'Finish-to-Start' | 'Start-to-Start' | 'Finish-to-Finish' | 'Start-to-Finish';
+
+export type Dependency = {
+  id: string; // The ID of the task this task depends on (the predecessor)
+  type: DependencyType;
+  lag: number; // in days
+};
+
+
 export type Task = {
   id: string;
   title: string;
@@ -19,7 +28,7 @@ export type Task = {
   assignee?: TeamMember;
   startDate: string; // ISO string
   endDate: string;   // ISO string
-  dependencies: string[]; // array of task ids
+  dependencies: Dependency[]; // array of dependency objects
   type: 'EPS' | 'WBS' | 'Activity';
   parentId?: string | null;
   isCritical?: boolean;

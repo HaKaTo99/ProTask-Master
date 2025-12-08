@@ -17,11 +17,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar as CalendarIcon, Plus, Trash2 } from 'lucide-react';
-import type { Task } from '@/lib/types';
+import type { Task, Dependency } from '@/lib/types';
 import { useEffect, useState, useMemo } from 'react';
 import { format, parseISO, isValid, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import { Checkbox } from '../ui/checkbox';
 
 interface TaskEditorDialogProps {
   open: boolean;
@@ -30,7 +31,7 @@ interface TaskEditorDialogProps {
   allTasks: Task[];
   onSave: (updatedTask: Partial<Task>) => void;
   onDelete: (taskId: string) => void;
-  onUpdateDependencies: (taskId: string, newDependencies: string[]) => void;
+  onUpdateDependencies: (taskId: string, newDependencies: Dependency[]) => void;
 }
 
 export function TaskEditorDialog({
@@ -44,13 +45,13 @@ export function TaskEditorDialog({
 }: TaskEditorDialogProps) {
   const [editedTask, setEditedTask] = useState<Partial<Task>>({});
   const [newPredecessor, setNewPredecessor] = useState('');
-  const [newSuccessor, setNewSuccessor] = useState('');
+  const [selectedPredecessors, setSelectedPredecessors] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // Reset local state when a new task is passed in
     setEditedTask(task);
     setNewPredecessor('');
-    setNewSuccessor('');
+    setSelectedPredecessors(new Set());
   }, [task]);
   
   const statusProgress: { [key: string]: number } = {
@@ -101,74 +102,59 @@ export function TaskEditorDialog({
   const getProgressFromStatus = (status: Task['status']) => statusProgress[status] || 0;
 
   const predecessors = useMemo(() => {
-    return (editedTask.dependencies || []).map(depId => {
-      return allTasks.find(t => t.id === depId);
-    }).filter(Boolean) as Task[];
+    const taskMap = new Map(allTasks.map(t => [t.id, t.title]));
+    return (editedTask.dependencies || []).map(dep => ({
+      ...dep,
+      name: taskMap.get(dep.id) || 'Unknown Task'
+    }));
   }, [editedTask.dependencies, allTasks]);
 
-  const successors = useMemo(() => {
-    return allTasks.filter(t => t.dependencies.includes(editedTask.id!));
-  }, [editedTask.id, allTasks]);
 
-  const handleRemovePredecessor = (predecessorId: string) => {
-    const newDependencies = (editedTask.dependencies || []).filter(depId => depId !== predecessorId);
+  const handleRemovePredecessors = () => {
+    const newDependencies = (editedTask.dependencies || []).filter(dep => !selectedPredecessors.has(dep.id));
     onUpdateDependencies(editedTask.id!, newDependencies);
     setEditedTask(prev => ({...prev, dependencies: newDependencies}));
+    setSelectedPredecessors(new Set());
   }
 
-  const handleRemoveSuccessor = (successorId: string) => {
-     // This is an indirect action: we must modify the successor task's dependencies
-     const successorTask = allTasks.find(t => t.id === successorId);
-     if (successorTask) {
-       const newSuccessorDeps = successorTask.dependencies.filter(depId => depId !== editedTask.id!);
-       onUpdateDependencies(successorId, newSuccessorDeps);
-     }
-  };
-
   const potentialPredecessors = useMemo(() => {
-    const predecessorIds = new Set(predecessors.map(p => p.id));
-    return allTasks.filter(t => t.id !== task.id && !predecessorIds.has(t.id));
-  }, [allTasks, task.id, predecessors]);
+    const predecessorIds = new Set((editedTask.dependencies || []).map(p => p.id));
+    // Simple circular dependency check: cannot add a task that depends on the current task
+    const successorIds = new Set(allTasks.filter(t => t.dependencies.some(d => d.id === task.id)).map(t => t.id));
+    return allTasks.filter(t => t.id !== task.id && !predecessorIds.has(t.id) && !successorIds.has(t.id));
+  }, [allTasks, task.id, editedTask.dependencies]);
 
   const handleAddPredecessor = () => {
     if (!newPredecessor || !task.id) return;
-    const newDependencies = [...(editedTask.dependencies || []), newPredecessor];
+    const newDep: Dependency = { id: newPredecessor, type: 'Finish-to-Start', lag: 0 };
+    const newDependencies = [...(editedTask.dependencies || []), newDep];
     onUpdateDependencies(task.id, newDependencies);
     setEditedTask(prev => ({...prev, dependencies: newDependencies}));
     setNewPredecessor('');
   };
   
-  const potentialSuccessors = useMemo(() => {
-    const successorIds = new Set(successors.map(s => s.id));
-    return allTasks.filter(t => t.id !== task.id && !successorIds.has(t.id));
-  }, [allTasks, task.id, successors]);
-
-  const handleAddSuccessor = () => {
-    if (!newSuccessor) return;
-    const successorTask = allTasks.find(t => t.id === newSuccessor);
-    if (successorTask) {
-        const newSuccessorDeps = [...successorTask.dependencies, task.id!];
-        onUpdateDependencies(successorTask.id, newSuccessorDeps);
-    }
-    setNewSuccessor('');
-  };
+  const successors = useMemo(() => {
+    return allTasks.filter(t => t.dependencies.some(dep => dep.id === editedTask.id!));
+  }, [editedTask.id, allTasks]);
 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl p-0">
-        <DialogHeader className="p-6 pb-0">
+      <DialogContent className="max-w-4xl p-0">
+        <DialogHeader className="p-6 pb-4">
           <DialogTitle>Task information</DialogTitle>
         </DialogHeader>
         
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="px-6 border-b rounded-none justify-start bg-transparent">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="predecessors">Predecessors</TabsTrigger>
-            <TabsTrigger value="successors">Successors</TabsTrigger>
-            <TabsTrigger value="resources" disabled>Resources</TabsTrigger>
-            <TabsTrigger value="advanced" disabled>Advanced</TabsTrigger>
-          </TabsList>
+          <div className="px-6 border-b">
+            <TabsList className="grid grid-cols-5 w-full max-w-lg bg-transparent p-0">
+                <TabsTrigger value="general">General</TabsTrigger>
+                <TabsTrigger value="predecessors">Predecessors</TabsTrigger>
+                <TabsTrigger value="successors">Successors</TabsTrigger>
+                <TabsTrigger value="resources" disabled>Resources</TabsTrigger>
+                <TabsTrigger value="advanced" disabled>Advanced</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="general" className="p-6">
             <div className="space-y-6">
@@ -261,11 +247,19 @@ export function TaskEditorDialog({
 
             </div>
           </TabsContent>
-          <TabsContent value="predecessors" className="p-6 min-h-[300px]">
-             <div className="flex gap-2 mb-4">
-                <Select value={newPredecessor} onValueChange={setNewPredecessor}>
-                    <SelectTrigger className="flex-grow">
-                        <SelectValue placeholder="Select a task to add as predecessor..." />
+          <TabsContent value="predecessors" className="p-0 min-h-[350px]">
+            <div className="border-b p-2 flex items-center gap-2">
+                <Select value={newPredecessor} onValueChange={(value) => {
+                    setNewPredecessor(value);
+                    if (value) {
+                        handleAddPredecessor();
+                    }
+                }}>
+                    <SelectTrigger className="w-auto h-8 border-none focus:ring-0">
+                       <div className="flex items-center gap-2">
+                         <Plus className="h-4 w-4"/>
+                         <span className="text-muted-foreground">Add new predecessor</span>
+                       </div>
                     </SelectTrigger>
                     <SelectContent>
                         {potentialPredecessors.map(p => (
@@ -273,58 +267,70 @@ export function TaskEditorDialog({
                         ))}
                     </SelectContent>
                 </Select>
-                <Button onClick={handleAddPredecessor} disabled={!newPredecessor}>
-                    <Plus className="mr-2 h-4 w-4" /> Add
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleRemovePredecessors} disabled={selectedPredecessors.size === 0}>
+                    <Trash2 className="h-4 w-4"/>
                 </Button>
             </div>
              <Table>
                 <TableHeader>
                     <TableRow>
+                        <TableHead className="w-[50px]">
+                           <Checkbox 
+                             checked={predecessors.length > 0 && selectedPredecessors.size === predecessors.length}
+                             onCheckedChange={(checked) => {
+                                if(checked) {
+                                  setSelectedPredecessors(new Set(predecessors.map(p => p.id)));
+                                } else {
+                                  setSelectedPredecessors(new Set());
+                                }
+                             }}
+                           />
+                        </TableHead>
                         <TableHead>Name</TableHead>
-                        <TableHead className="w-[100px] text-right">Action</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Lag</TableHead>
+                        <TableHead className="w-[80px]">Active</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {predecessors.length > 0 ? (
                         predecessors.map(p => (
-                            <TableRow key={p.id}>
-                                <TableCell className="font-medium">{p.title}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" className='h-8 w-8 text-muted-foreground' onClick={() => handleRemovePredecessor(p.id)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
+                            <TableRow key={p.id} data-state={selectedPredecessors.has(p.id) && "selected"}>
+                                <TableCell>
+                                    <Checkbox
+                                        checked={selectedPredecessors.has(p.id)}
+                                        onCheckedChange={(checked) => {
+                                            setSelectedPredecessors(prev => {
+                                                const newSet = new Set(prev);
+                                                if (checked) newSet.add(p.id);
+                                                else newSet.delete(p.id);
+                                                return newSet;
+                                            })
+                                        }}
+                                    />
+                                </TableCell>
+                                <TableCell className="font-medium">{p.name}</TableCell>
+                                <TableCell>{p.type}</TableCell>
+                                <TableCell>{p.lag} days</TableCell>
+                                <TableCell>
+                                    <Checkbox checked={true} />
                                 </TableCell>
                             </TableRow>
                         ))
                     ) : (
                         <TableRow>
-                            <TableCell colSpan={2} className="text-center text-muted-foreground h-24">No predecessors</TableCell>
+                            <TableCell colSpan={5} className="text-center text-muted-foreground h-24">No predecessors</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
              </Table>
           </TabsContent>
            <TabsContent value="successors" className="p-6 min-h-[300px]">
-            <div className="flex gap-2 mb-4">
-                <Select value={newSuccessor} onValueChange={setNewSuccessor}>
-                    <SelectTrigger className="flex-grow">
-                        <SelectValue placeholder="Select a task to add as successor..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                         {potentialSuccessors.map(s => (
-                            <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <Button onClick={handleAddSuccessor} disabled={!newSuccessor}>
-                    <Plus className="mr-2 h-4 w-4" /> Add
-                </Button>
-            </div>
              <Table>
                 <TableHeader>
                     <TableRow>
                         <TableHead>Name</TableHead>
-                        <TableHead className="w-[100px] text-right">Action</TableHead>
+                        <TableHead>Type</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -332,11 +338,7 @@ export function TaskEditorDialog({
                         successors.map(s => (
                             <TableRow key={s.id}>
                                 <TableCell className="font-medium">{s.title}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" className='h-8 w-8 text-muted-foreground' onClick={() => handleRemoveSuccessor(s.id)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </TableCell>
+                                <TableCell>{s.dependencies.find(d => d.id === task.id)?.type || 'Finish-to-Start'}</TableCell>
                             </TableRow>
                         ))
                     ) : (
