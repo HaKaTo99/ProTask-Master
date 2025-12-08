@@ -668,7 +668,7 @@ const GanttChart = () => {
       return { left: 0, width: 0};
     }
 
-    const isMilestone = task.startDate === task.endDate;
+    const isMilestone = taskStartDateStr === taskEndDateStr;
     
     const left = getPositionFromDate(taskStartDate);
     
