@@ -504,10 +504,10 @@ const GanttChart = () => {
           const monthEnd = endOfMonth(monthStart);
           const end = interval.end < monthEnd ? interval.end : monthEnd;
           const daysInMonth = differenceInDays(end, monthStart) + 1;
-          return { label: format(monthStart, 'MMMM yyyy'), units: daysInMonth };
+          return { label: format(monthStart, "MMM ''yy"), units: daysInMonth };
         });
         secondaryHeader = secondaryHeaderDates.map(day => ({
-          label: format(day, 'd'),
+          label: format(day, 'EEE d'),
           units: 1
         }));
         break;
@@ -526,7 +526,7 @@ const GanttChart = () => {
             const start = new Date(Math.max(interval.start.getTime(), monthStart.getTime()));
             const end = new Date(Math.min(interval.end.getTime(), endOfMonth(monthStart).getTime()));
             const weeksInMonth = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 }).length;
-            return { label: format(monthStart, 'MMMM yyyy'), units: weeksInMonth };
+            return { label: format(monthStart, "MMM ''yy"), units: weeksInMonth };
         });
         break;
       }
@@ -647,13 +647,13 @@ const GanttChart = () => {
   }, [resize, stopResizing]);
   
   const handleDragStart = (e: React.MouseEvent, task: Task, action: 'move' | 'resize-end' | 'resize-start') => {
-    if (task.type !== 'Activity' || task.startDate === task.endDate) return;
+    if (task.type !== 'Activity') return;
+    
+    const isMilestone = task.startDate === task.endDate;
+    if (isMilestone) return;
+
     e.preventDefault();
     e.stopPropagation();
-
-    const isMilestone = task.startDate === task.endDate;
-    if (isMilestone && (action === 'resize-start' || action === 'resize-end')) return;
-
 
     setDraggingInfo({
       task,
@@ -937,7 +937,7 @@ const GanttChart = () => {
                         "h-7 flex items-center justify-center border-r border-b border-border/50",
                          isWeekend && 'bg-muted/60'
                       )}>
-                        <span className="font-medium text-xs">{group.label}</span>
+                        <span className="font-medium text-xs text-muted-foreground">{group.label}</span>
                       </div>
                     )
                   })}
@@ -1106,7 +1106,7 @@ const GanttChart = () => {
                     );
                   }
 
-                  const isDraggable = task.type === 'Activity' && !isMilestone;
+                  const isDraggable = task.type === 'Activity';
                   const baselineDeviation = (baselineExists && isValid(parseISO(task.endDate)) && isValid(parseISO(task.baselineEndDate))) 
                     ? differenceInDays(parseISO(task.endDate), parseISO(task.baselineEndDate)) 
                     : 0;
@@ -1270,5 +1270,3 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
-
-    
