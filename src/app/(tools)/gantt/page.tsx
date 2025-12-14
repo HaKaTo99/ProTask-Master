@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { teamMembers as initialTeamMembers } from "@/lib/data";
@@ -672,6 +673,7 @@ const GanttChart = () => {
     
     const left = getPositionFromDate(taskStartDate);
     
+    // Milestones are a single point in time, other tasks span until the end of the day.
     const effectiveEndDate = isMilestone ? taskEndDate : addDays(taskEndDate, 1);
     const end = getPositionFromDate(effectiveEndDate);
 
@@ -680,12 +682,12 @@ const GanttChart = () => {
     if (isMilestone) {
         width = 0; // Milestones have no width, they are a point in time
     } else if (width < 2) {
-        width = 2; // Ensure a minimum visual width
+        width = 2; // Ensure a minimum visual width for very short tasks
     }
     
     return { left, width };
 
-  }, [getPositionFromDate, timeScale, interval]);
+  }, [getPositionFromDate, interval]);
 
 
   const startResizing = useCallback((e: React.MouseEvent) => {
@@ -1160,9 +1162,9 @@ const GanttChart = () => {
                             onMouseDown={(e) => handleDragStart(e, task, 'move')}
                             className="absolute top-0 flex items-center justify-center z-10 cursor-pointer"
                             style={{
-                              left: `${left - 12}`, // Center the diamond
+                              left: `${left}px`, 
                               top: `${index * ROW_HEIGHT_PX + (ROW_HEIGHT_PX / 2)}px`,
-                              transform: 'translateY(-50%)',
+                              transform: 'translate(-50%, -50%)',
                               width: 24,
                               height: 24,
                             }}
@@ -1221,7 +1223,7 @@ const GanttChart = () => {
                               />
                               
                               {/* Drag Handles for Resize */}
-                              {isDraggable && (
+                              {isDraggable && !isMilestone && (
                                 <>
                                   <div 
                                     onMouseDown={(e) => handleDragStart(e, task, 'resize-start')}
