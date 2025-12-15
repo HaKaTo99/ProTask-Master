@@ -695,7 +695,7 @@ const GanttChart = () => {
     if (task.type !== 'Activity') return;
     
     const isMilestone = task.startDate === task.endDate;
-    if (isMilestone && action !== 'progress') return;
+    if (isMilestone && (action === 'resize-start' || action === 'resize-end')) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -1197,6 +1197,7 @@ const GanttChart = () => {
                         <TooltipTrigger asChild>
                           <div
                             onDoubleClick={() => setEditingTask(task)}
+                            onMouseDown={(e) => handleDragStart(e, task, 'move')}
                             className="absolute top-0 flex items-center justify-center z-10 cursor-pointer"
                             style={{
                               left: `${left}px`, 
