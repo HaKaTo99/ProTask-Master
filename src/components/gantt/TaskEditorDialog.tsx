@@ -252,9 +252,14 @@ export function TaskEditorDialog({
                   <Label htmlFor="percent-complete">% complete</Label>
                   <Input 
                     id="percent-complete" 
-                    type="number" 
-                    value={getProgressFromStatus(editedTask.status || task.status)} 
-                    disabled 
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={editedTask.progress ?? getProgressFromStatus(editedTask.status || task.status)} 
+                    onChange={(e) => {
+                      const progressValue = Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0));
+                      handleChange('progress', progressValue);
+                    }}
                   />
                 </div>
                  <div className="space-y-2">

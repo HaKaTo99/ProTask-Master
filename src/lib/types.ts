@@ -34,4 +34,5 @@ export type Task = {
   isCritical?: boolean;
   baselineStartDate?: string;
   baselineEndDate?: string;
+  progress?: number;
 };

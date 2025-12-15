@@ -78,7 +78,7 @@ const EditableCell = ({
 }: { 
   value: string; 
   onSave: (newValue: string) => void;
-  type?: 'text' | 'date';
+  type?: 'text' | 'date' | 'number';
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentValue, setCurrentValue] = useState(value);
@@ -103,7 +103,7 @@ const EditableCell = ({
     // For date, convert back to ISO string before saving
     if (type === 'date' && isValid(parseISO(currentValue))) {
       onSave(parseISO(currentValue).toISOString());
-    } else if (type === 'text') {
+    } else if (type === 'text' || type === 'number') {
       onSave(currentValue);
     } else {
       // Revert if date is invalid
@@ -131,6 +131,10 @@ const EditableCell = ({
       setCurrentValue(value); // Revert changes
     }
   };
+  
+  useEffect(() => {
+    setCurrentValue(value);
+  }, [value]);
 
   if (isEditing) {
     return (
@@ -642,7 +646,6 @@ const GanttChart = () => {
     
     const left = getPositionFromDate(taskStartDate);
     
-    // Milestones are a single point in time, other tasks span until the end of the day.
     const effectiveEndDate = isMilestone ? taskEndDate : addDays(taskEndDate, 1);
     const end = getPositionFromDate(effectiveEndDate);
 
@@ -690,7 +693,7 @@ const GanttChart = () => {
     if (task.type !== 'Activity') return;
     
     const isMilestone = task.startDate === task.endDate;
-    if (isMilestone && action !== 'move') return;
+    if (isMilestone) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -944,7 +947,16 @@ const GanttChart = () => {
                       />
                     </TableCell>
                     <TableCell className="text-muted-foreground truncate">{task.dependencies.map(d => d.id).join(', ')}</TableCell>
-                    <TableCell className="text-muted-foreground">{`${statusProgress[task.status] || 0}%`}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      <EditableCell
+                        type="number"
+                        value={`${task.progress ?? statusProgress[task.status] ?? 0}`}
+                        onSave={(newProgress) => {
+                          const progressValue = Math.max(0, Math.min(100, parseInt(newProgress, 10) || 0));
+                          handleUpdateTask(task.id, { progress: progressValue });
+                        }}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1109,7 +1121,7 @@ const GanttChart = () => {
                 {tasks.map((task, index) => {
                   const { left, width } = getTaskPosition(task.startDate, task.endDate);
                   if (width < 0 && task.startDate !== task.endDate) return null;
-                  const progress = statusProgress[task.status] || 0;
+                  const progress = task.progress ?? statusProgress[task.status] ?? 0;
                   const isSummary = task.type !== 'Activity';
                   const isMilestone = task.startDate === task.endDate;
 
@@ -1128,7 +1140,6 @@ const GanttChart = () => {
                         <TooltipTrigger asChild>
                           <div
                             onDoubleClick={() => setEditingTask(task)}
-                            onMouseDown={(e) => handleDragStart(e, task, 'move')}
                             className="absolute top-0 flex items-center justify-center z-10 cursor-pointer"
                             style={{
                               left: `${left}px`, 
