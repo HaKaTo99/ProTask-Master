@@ -701,7 +701,7 @@ const GanttChart = () => {
     if (task.type !== 'Activity') return;
     
     const isMilestone = task.startDate === task.endDate;
-    if (isMilestone && (action === 'resize-start' || action === 'resize-end' || action === 'progress')) return;
+    if (isMilestone && (action === 'resize-start' || action === 'resize-end' || action === 'progress' || action === 'move')) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -810,15 +810,6 @@ const GanttChart = () => {
 
   const handleGlobalMouseUp = useCallback((e: MouseEvent) => {
     if (draggingInfo) {
-      if (draggingInfo.action === 'progress') {
-        const { task, initialX, taskBarWidth, initialProgress } = draggingInfo;
-        const dx = e.clientX - initialX;
-        if (taskBarWidth !== undefined && initialProgress !== undefined) {
-            const progressDelta = (dx / taskBarWidth) * 100;
-            const newProgress = Math.round(Math.max(0, Math.min(100, initialProgress + progressDelta)));
-            handleUpdateTask(task.id, { progress: newProgress });
-        }
-      }
       setDraggingInfo(null);
     }
     if (newDependency) {
@@ -832,7 +823,7 @@ const GanttChart = () => {
       }
       setNewDependency(null);
     }
-  }, [draggingInfo, newDependency, handleCreateDependency, handleUpdateTask]);
+  }, [draggingInfo, newDependency, handleCreateDependency]);
   
   useEffect(() => {
     const isDragging = !!draggingInfo || !!newDependency;
@@ -1058,20 +1049,20 @@ const GanttChart = () => {
                  {/* Project Markers */}
                  {projectStartPos > -1 && (
                   <div className="absolute top-0 h-full w-px" style={{ left: `${projectStartPos}px` }}>
-                      <div className="absolute top-1 -translate-x-full flex items-center gap-1 text-accent text-xs font-bold">
+                      <div className="absolute top-1 -translate-x-full flex items-center gap-1 text-green-600 text-xs font-bold">
                         <Flag className="h-4 w-4" />
                         <span>Mulai</span>
                       </div>
-                      <div className="w-px h-full bg-accent/50" />
+                      <div className="w-px h-full bg-green-600/50" />
                   </div>
                  )}
                  {projectEndPos > -1 && (
                     <div className="absolute top-0 h-full w-px" style={{ left: `${projectEndPos}px` }}>
-                        <div className="absolute top-1 translate-x-1 flex items-center gap-1 text-accent text-xs font-bold">
+                        <div className="absolute top-1 translate-x-1 flex items-center gap-1 text-red-600 text-xs font-bold">
                             <span>Selesai</span>
                             <Flag className="h-4 w-4" />
                         </div>
-                        <div className="w-px h-full bg-accent/50" />
+                        <div className="w-px h-full bg-red-600/50" />
                     </div>
                  )}
               </div>
@@ -1220,7 +1211,6 @@ const GanttChart = () => {
                         <TooltipTrigger asChild>
                           <div
                             onDoubleClick={() => setEditingTask(task)}
-                            onMouseDown={(e) => handleDragStart(e, task, 'move')}
                             className="absolute top-0 flex items-center justify-center z-10 cursor-pointer"
                             style={{
                               left: `${left}px`, 
