@@ -153,3 +153,142 @@ Machine learning yang secara otomatis menyarankan anggota tim yang paling sesuai
 - Readable bahkan dalam ukuran kecil
 
 **Hierarki Tipografi:**
+H1 (Page Title): Space Grotesk, 32px, Bold H2 (Section Title): Space Grotesk, 24px, Semi-Bold H3 (Card Title): Space Grotesk, 18px, Medium Body: Inter, 14px, Regular Small Text: Inter, 12px, Regular
+
+### **Icon System**
+- **Style**: Minimalist outline icons
+- **Prinsip**: Simple, clear, instantly recognizable
+- **Task Types**: Bug 🐛, Feature ⭐, Documentation 📝
+- **Project Categories**: Development 💻, Marketing 📢, Design 🎨
+- **Status**: In Progress 🔄, Completed ✅, Blocked 🚫
+
+### **Layout System**
+- **Grid**: 12-column responsive grid
+- **Spacing**: 8px baseline (8, 16, 24, 32, 40, 48...)
+- **Patterns**: Card-based dashboard, multi-column Kanban, full-width Gantt
+
+### **Animations & Transitions**
+- **Duration**: 200-300ms untuk interaksi
+- **Easing**: Ease-in-out untuk natural feel
+- **Aplikasi**: Task state changes, hover effects, modals, dropdowns
+- **Prinsip**: Subtle, tidak mengganggu workflow
+
+---
+
+## **👥 Target Pengguna**
+
+| Pengguna | Use Case |
+|----------|----------|
+| **Project Managers** | Mengelola multiple projects dan tim |
+| **Agile Teams** | Sprint planning dan daily standups |
+| **Freelancers** | Personal task management dan client projects |
+| **Agencies** | Berbagai client projects secara bersamaan |
+| **Enterprises** | Large-scale project coordination |
+
+---
+
+## **🏆 Keunggulan Kompetitif**
+
+- ✅ **All-in-One Solution**: Gantt, Kanban, PERT dalam satu aplikasi
+- ✅ **AI-Powered**: Smart task assignment untuk optimasi tim
+- ✅ **Flexibility**: Berbagai views untuk berbagai kebutuhan
+- ✅ **Modern UI/UX**: Design yang clean dan intuitive
+- ✅ **Automation**: PERT generation dan AI suggestions
+
+---
+
+## **🛠️ Tech Stack (Rekomendasi)**
+
+### **Frontend**
+- React/Next.js untuk UI
+- Tailwind CSS untuk styling (custom color scheme)
+- D3.js untuk Gantt & PERT visualization
+- React Beautiful DnD untuk Kanban drag-and-drop
+
+### **Backend**
+- Node.js/Express atau Python/Django
+- PostgreSQL untuk data persistence
+- Redis untuk caching
+- WebSocket untuk real-time updates
+
+### **AI/ML**
+- Python (scikit-learn, TensorFlow) untuk AI task assigner
+- Feature engineering: skill matching, workload analysis
+
+---
+
+## **🚀 Getting Started**
+
+### Prerequisites
+```bash
+Node.js >= 16.x
+npm >= 8.x
+PostgreSQL >= 14.x
+
+Installation
+
+# Clone repository
+git clone https://github.com/HaKaTo99/ProTask-Master.git
+
+# Navigate to project
+cd ProTask-Master
+
+# Install dependencies
+npm install
+
+# Setup environment variables
+cp .env.example .env
+
+# Run database migrations
+npm run migrate
+
+# Start development server
+npm run dev
+
+
+Configuration
+Update .env file dengan konfigurasi Anda:
+
+env
+DATABASE_URL=postgresql://user:password@localhost:5432/protask
+REDIS_URL=redis://localhost:6379
+AI_MODEL_PATH=./models/task_assigner
+
+
+
+📖 Documentation
+User Guide
+API Documentation
+Architecture Overview
+Contributing Guidelines
+🤝 Contributing
+Kami menerima kontribusi! Silakan baca CONTRIBUTING.md untuk detail.
+
+Development Workflow
+bash
+# Create feature branch
+git checkout -b feature/amazing-feature
+
+# Commit changes
+git commit -m 'Add amazing feature'
+
+# Push to branch
+git push origin feature/amazing-feature
+
+# Open Pull Request
+📝 License
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+📧 Contact
+HaKaTo99 - @HaKaTo99
+
+Project Link: https://github.com/HaKaTo99/ProTask-Master
+
+🙏 Acknowledgments
+React
+Tailwind CSS
+D3.js
+TensorFlow
+Made with ❤️ for productive teams everywhere
+
+Code
