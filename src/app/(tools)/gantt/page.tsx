@@ -178,10 +178,12 @@ const GanttChart = () => {
   
   const [draggingInfo, setDraggingInfo] = useState<{
     task: Task;
-    action: 'move' | 'resize-end' | 'resize-start';
+    action: 'move' | 'resize-end' | 'resize-start' | 'progress';
     initialX: number;
-    initialStartDate: Date;
-    initialEndDate: Date;
+    initialStartDate?: Date;
+    initialEndDate?: Date;
+    initialProgress?: number;
+    taskBarWidth?: number;
   } | null>(null);
 
   const [newDependency, setNewDependency] = useState<{
@@ -689,22 +691,33 @@ const GanttChart = () => {
     };
   }, [resize, stopResizing]);
   
-  const handleDragStart = (e: React.MouseEvent, task: Task, action: 'move' | 'resize-end' | 'resize-start') => {
+  const handleDragStart = (e: React.MouseEvent, task: Task, action: 'move' | 'resize-end' | 'resize-start' | 'progress') => {
     if (task.type !== 'Activity') return;
     
     const isMilestone = task.startDate === task.endDate;
-    if (isMilestone) return;
+    if (isMilestone && action !== 'progress') return;
 
     e.preventDefault();
     e.stopPropagation();
 
-    setDraggingInfo({
-      task,
-      action,
-      initialX: e.clientX,
-      initialStartDate: parseISO(task.startDate),
-      initialEndDate: parseISO(task.endDate),
-    });
+    const commonDragInfo = { task, action, initialX: e.clientX };
+
+    if (action === 'progress') {
+        const taskBar = (e.currentTarget as HTMLElement).closest('[data-task-id]') as HTMLElement;
+        if (taskBar) {
+            setDraggingInfo({
+                ...commonDragInfo,
+                taskBarWidth: taskBar.offsetWidth,
+                initialProgress: task.progress ?? 0,
+            });
+        }
+    } else {
+        setDraggingInfo({
+          ...commonDragInfo,
+          initialStartDate: parseISO(task.startDate),
+          initialEndDate: parseISO(task.endDate),
+        });
+    }
   };
 
   const handleDependencyDragStart = (e: React.MouseEvent, sourceTaskId: string, sourceHandle: 'start' | 'end') => {
@@ -732,43 +745,61 @@ const GanttChart = () => {
 
   const handleGlobalMouseMove = useCallback((e: MouseEvent) => {
     if (draggingInfo) {
-      const dx = e.clientX - draggingInfo.initialX;
-      
-      let finalStartDate: Date;
-      let finalEndDate: Date;
+        const dx = e.clientX - draggingInfo.initialX;
+        const { action, task, taskBarWidth, initialProgress } = draggingInfo;
+        
+        if (action === 'progress' && taskBarWidth !== undefined && initialProgress !== undefined) {
+            const progressDelta = (dx / taskBarWidth) * 100;
+            const newProgress = Math.max(0, Math.min(100, initialProgress + progressDelta));
+            
+            // Live update for visual feedback
+            const taskElement = document.querySelector(`[data-task-id="${task.id}"] [data-role="progress-bar"]`) as HTMLElement;
+            const progressHandle = document.querySelector(`[data-task-id="${task.id}"] [data-role="progress-handle"]`) as HTMLElement;
+            if (taskElement) taskElement.style.width = `${newProgress}%`;
+            if (progressHandle) progressHandle.style.left = `${newProgress}%`;
 
-      if (draggingInfo.action === 'move') {
-          const startPos = getPositionFromDate(draggingInfo.initialStartDate);
-          const newStartPos = startPos + dx;
-          finalStartDate = getDateFromPosition(newStartPos);
-          const duration = differenceInMinutes(draggingInfo.initialEndDate, draggingInfo.initialStartDate);
-          finalEndDate = addMinutes(finalStartDate, duration);
-      } else {
-          finalStartDate = draggingInfo.initialStartDate;
-          finalEndDate = draggingInfo.initialEndDate;
-          if (draggingInfo.action === 'resize-end') {
-              const endPos = getPositionFromDate(draggingInfo.initialEndDate);
-              const newEndPos = endPos + dx;
-              finalEndDate = getDateFromPosition(newEndPos);
-              if (finalEndDate < finalStartDate) finalEndDate = finalStartDate;
-          } else { // resize-start
-              const startPos = getPositionFromDate(draggingInfo.initialStartDate);
-              const newStartPos = startPos + dx;
-              finalStartDate = getDateFromPosition(newStartPos);
-              if (finalStartDate > finalEndDate) finalStartDate = finalEndDate;
-          }
-      }
-
-      setAllTasks(prevTasks => prevTasks.map(t => {
-        if (t.id === draggingInfo.task.id) {
-          return {
-            ...t,
-            startDate: finalStartDate.toISOString(),
-            endDate: finalEndDate.toISOString(),
-          };
+            // We update the final value only on mouse up to avoid excessive re-renders of the whole component
+            return;
         }
-        return t;
-      }));
+
+        if (draggingInfo.initialStartDate && draggingInfo.initialEndDate) {
+            let finalStartDate: Date;
+            let finalEndDate: Date;
+
+            if (draggingInfo.action === 'move') {
+                const startPos = getPositionFromDate(draggingInfo.initialStartDate);
+                const newStartPos = startPos + dx;
+                finalStartDate = getDateFromPosition(newStartPos);
+                const duration = differenceInMinutes(draggingInfo.initialEndDate, draggingInfo.initialStartDate);
+                finalEndDate = addMinutes(finalStartDate, duration);
+            } else {
+                finalStartDate = draggingInfo.initialStartDate;
+                finalEndDate = draggingInfo.initialEndDate;
+                if (draggingInfo.action === 'resize-end') {
+                    const endPos = getPositionFromDate(draggingInfo.initialEndDate);
+                    const newEndPos = endPos + dx;
+                    finalEndDate = getDateFromPosition(newEndPos);
+                    if (finalEndDate < finalStartDate) finalEndDate = finalStartDate;
+                } else { // resize-start
+                    const startPos = getPositionFromDate(draggingInfo.initialStartDate);
+                    const newStartPos = startPos + dx;
+                    finalStartDate = getDateFromPosition(newStartPos);
+                    if (finalStartDate > finalEndDate) finalStartDate = finalEndDate;
+                }
+            }
+
+            setAllTasks(prevTasks => prevTasks.map(t => {
+                if (t.id === draggingInfo.task.id) {
+                return {
+                    ...t,
+                    startDate: finalStartDate.toISOString(),
+                    endDate: finalEndDate.toISOString(),
+                };
+                }
+                return t;
+            }));
+        }
+
     } else if (newDependency && ganttContainerRef.current) {
         const rect = ganttContainerRef.current.getBoundingClientRect();
         const endX = e.clientX - rect.left + ganttContainerRef.current.scrollLeft;
@@ -779,6 +810,15 @@ const GanttChart = () => {
 
   const handleGlobalMouseUp = useCallback((e: MouseEvent) => {
     if (draggingInfo) {
+      if (draggingInfo.action === 'progress') {
+        const { task, initialX, taskBarWidth, initialProgress } = draggingInfo;
+        const dx = e.clientX - initialX;
+        if (taskBarWidth !== undefined && initialProgress !== undefined) {
+            const progressDelta = (dx / taskBarWidth) * 100;
+            const newProgress = Math.round(Math.max(0, Math.min(100, initialProgress + progressDelta)));
+            handleUpdateTask(task.id, { progress: newProgress });
+        }
+      }
       setDraggingInfo(null);
     }
     if (newDependency) {
@@ -792,13 +832,24 @@ const GanttChart = () => {
       }
       setNewDependency(null);
     }
-  }, [draggingInfo, newDependency, handleCreateDependency]);
+  }, [draggingInfo, newDependency, handleCreateDependency, handleUpdateTask]);
   
   useEffect(() => {
     const isDragging = !!draggingInfo || !!newDependency;
+    let cursor = 'default';
+    if (draggingInfo) {
+        switch(draggingInfo.action) {
+            case 'move': cursor = 'grabbing'; break;
+            case 'resize-start':
+            case 'resize-end': cursor = 'ew-resize'; break;
+            case 'progress': cursor = 'ew-resize'; break;
+        }
+    } else if (newDependency) {
+        cursor = 'crosshair';
+    }
     
     if (isDragging) {
-      document.body.style.cursor = draggingInfo ? (draggingInfo.action === 'move' ? 'grabbing' : 'ew-resize') : 'crosshair';
+      document.body.style.cursor = cursor;
       window.addEventListener('mousemove', handleGlobalMouseMove);
       window.addEventListener('mouseup', handleGlobalMouseUp);
     } else {
@@ -1068,10 +1119,16 @@ const GanttChart = () => {
                       const toIsMilestone = toNode.startDate.getTime() === toNode.endDate.getTime();
 
                       const fromX = fromIsMilestone ? fromPosition.left : fromPosition.left + fromPosition.width;
-                      const toX = toPosition.left;
+                      let toX = toPosition.left;
                       
+                      if (toIsMilestone) {
+                          toX -= 6; // Adjust for diamond icon size
+                      } else {
+                          toX -= 8; // Adjust for arrow size
+                      }
+
                       const startPointX = fromX;
-                      const endPointX = toIsMilestone ? toX - 6 : toX - 8; // smaller offset for milestone diamond
+                      const endPointX = toX;
                       const connectorOffset = 20;
 
                       if (endPointX < startPointX + connectorOffset) {
@@ -1188,19 +1245,36 @@ const GanttChart = () => {
                               className={cn(
                                 "relative h-8 w-full flex items-center rounded-sm text-primary-foreground overflow-visible shadow-sm z-10",
                                 isDraggable && "cursor-grab",
-                                draggingInfo?.task.id === task.id && "cursor-grabbing ring-2 ring-primary ring-offset-2 z-20",
+                                draggingInfo?.task.id === task.id && (draggingInfo.action === 'move' || draggingInfo.action === 'resize-start' || draggingInfo.action === 'resize-end') && "cursor-grabbing ring-2 ring-primary ring-offset-2 z-20",
+                                draggingInfo?.task.id === task.id && draggingInfo.action === 'progress' && "z-20"
                               )}
                             >
                              <div 
-                                className="absolute inset-0"
+                                className="absolute inset-0 bg-primary/25"
                                 style={{
                                   background: task.isCritical 
-                                    ? `linear-gradient(to right, hsl(var(--accent)/0.8), hsl(var(--accent)/0.7) ${progress}%, hsl(var(--accent)/0.25) ${progress}%)`
+                                    ? `hsl(var(--accent)/0.25)`
                                     : (isSummary 
-                                      ? `linear-gradient(to right, hsl(var(--foreground)/0.8), hsl(var(--foreground)/0.7) ${progress}%, hsl(var(--foreground)/0.25) ${progress}%)`
-                                      : `linear-gradient(to right, hsl(var(--primary)/0.8), hsl(var(--primary)/0.7) ${progress}%, hsl(var(--primary)/0.25) ${progress}%)`)
+                                      ? `hsl(var(--foreground)/0.25)`
+                                      : `hsl(var(--primary)/0.25)`)
                                 }}
                               />
+                              <div
+                                data-role="progress-bar"
+                                className={cn(
+                                  "absolute h-full rounded-sm",
+                                  task.isCritical ? "bg-accent/80" : (isSummary ? "bg-foreground/80" : "bg-primary/80")
+                                )}
+                                style={{ width: `${progress}%` }}
+                              >
+                                {isDraggable && !isSummary && (
+                                <div
+                                  data-role="progress-handle"
+                                  onMouseDown={(e) => handleDragStart(e, task, 'progress')}
+                                  className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-4 rounded-sm bg-primary-foreground cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30"
+                                />
+                                )}
+                              </div>
                               
                               {/* Drag Handles for Resize */}
                               {isDraggable && !isMilestone && (
