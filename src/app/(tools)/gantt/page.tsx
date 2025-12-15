@@ -695,7 +695,7 @@ const GanttChart = () => {
     if (task.type !== 'Activity') return;
     
     const isMilestone = task.startDate === task.endDate;
-    if (isMilestone && (action === 'resize-start' || action === 'resize-end')) return;
+    if (isMilestone && (action === 'resize-start' || action === 'resize-end' || action === 'progress')) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -748,17 +748,10 @@ const GanttChart = () => {
         const dx = e.clientX - draggingInfo.initialX;
         const { action, task, taskBarWidth, initialProgress } = draggingInfo;
         
-        if (action === 'progress' && taskBarWidth !== undefined && initialProgress !== undefined) {
+        if (action === 'progress' && taskBarWidth !== undefined && taskBarWidth > 0 && initialProgress !== undefined) {
             const progressDelta = (dx / taskBarWidth) * 100;
             const newProgress = Math.max(0, Math.min(100, initialProgress + progressDelta));
-            
-            // Live update for visual feedback
-            const taskElement = document.querySelector(`[data-task-id="${task.id}"] [data-role="progress-bar"]`) as HTMLElement;
-            const progressHandle = document.querySelector(`[data-task-id="${task.id}"] [data-role="progress-handle"]`) as HTMLElement;
-            if (taskElement) taskElement.style.width = `${newProgress}%`;
-            if (progressHandle) progressHandle.style.left = `${newProgress}%`;
-
-            // We update the final value only on mouse up to avoid excessive re-renders of the whole component
+            handleUpdateTask(task.id, { progress: newProgress });
             return;
         }
 
@@ -806,7 +799,7 @@ const GanttChart = () => {
         const endY = e.clientY - rect.top + ganttContainerRef.current.scrollTop;
         setNewDependency(prev => prev ? { ...prev, endX, endY } : null);
     }
-  }, [draggingInfo, getPositionFromDate, getDateFromPosition, newDependency]);
+  }, [draggingInfo, getPositionFromDate, getDateFromPosition, newDependency, handleUpdateTask]);
 
   const handleGlobalMouseUp = useCallback((e: MouseEvent) => {
     if (draggingInfo) {
@@ -1267,15 +1260,15 @@ const GanttChart = () => {
                                   task.isCritical ? "bg-accent/80" : (isSummary ? "bg-foreground/80" : "bg-primary/80")
                                 )}
                                 style={{ width: `${progress}%` }}
-                              >
-                                {isDraggable && !isSummary && (
+                              />
+                              {isDraggable && !isSummary && (
                                 <div
                                   data-role="progress-handle"
                                   onMouseDown={(e) => handleDragStart(e, task, 'progress')}
-                                  className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-4 rounded-sm bg-primary-foreground cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30"
+                                  className="absolute top-1/2 -translate-y-1/2 w-2 h-4 rounded-sm bg-primary-foreground cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30"
+                                  style={{ left: `${progress}%`, transform: 'translateX(-50%)' }}
                                 />
-                                )}
-                              </div>
+                              )}
                               
                               {/* Drag Handles for Resize */}
                               {isDraggable && !isMilestone && (
