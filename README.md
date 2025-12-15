@@ -1,21 +1,155 @@
-# **App Name**: ProTask Master
+# **ProTask Master** 🚀
 
-## Core Features:
+> **Solusi Manajemen Proyek All-in-One dengan AI-Powered Task Assignment**
 
-- Gantt Chart View: Display tasks and timelines in an interactive Gantt chart.
-- Kanban Board View: Organize tasks using a Kanban board with drag-and-drop functionality.
-- PERT Diagram Generation: Automatically generate PERT diagrams from project data to visualize task dependencies and critical paths.
-- Scheduler Integration: Schedule tasks and resources with an integrated scheduler.
-- To-Do List Functionality: Create and manage to-do lists with customizable task details and deadlines.
-- Event Calendar: Visualize task deadlines and project milestones using an interactive event calendar.
-- AI Task Assigner Tool: Automatically suggests suitable assignees for new tasks using machine learning.
+ProTask Master adalah aplikasi manajemen proyek yang komprehensif dan modern, dirancang untuk membantu tim dan individu mengelola proyek dengan lebih efisien. Aplikasi ini menggabungkan berbagai metodologi manajemen proyek dalam satu platform terpadu dengan dukungan kecerdasan buatan (AI).
 
-## Style Guidelines:
+---
 
-- Primary color: Vibrant blue (#29ABE2) to reflect clarity and efficiency.
-- Background color: Light gray (#F0F4F8) for a clean and professional look.
-- Accent color: Orange (#FF9800) to highlight important actions and deadlines.
-- Font pairing: 'Space Grotesk' (sans-serif) for headlines, and 'Inter' (sans-serif) for body text.
-- Use minimalist icons to represent task types and project categories.
-- Use a clean, grid-based layout for optimal task organization.
-- Subtle transitions for task updates and state changes.
+## **✨ Fitur Utama**
+
+### **1. 📊 Gantt Chart View (Tampilan Diagram Gantt)**
+Visualisasikan jadwal proyek dalam bentuk timeline horizontal yang interaktif.
+
+**Keunggulan:**
+- **Interaktif**: Klik, seret, dan ubah durasi tugas langsung pada diagram
+- **Visualisasi Dependencies**: Lihat hubungan antar tugas dengan garis penghubung
+- **Tracking Progress**: Persentase penyelesaian tugas dengan indikator visual
+- **Resource Management**: Alokasi sumber daya sepanjang timeline proyek
+
+**Use Case:**
+- Perencanaan proyek konstruksi dengan banyak fase
+- Pengembangan software dengan sprint dan milestone
+- Campaign marketing dengan berbagai deliverables
+
+---
+
+### **2. 📋 Kanban Board View (Tampilan Papan Kanban)**
+Organisir tugas dalam kolom-kolom dengan sistem drag-and-drop yang intuitif.
+
+**Keunggulan:**
+- **Visual Workflow**: Lihat alur kerja tim dalam satu pandangan
+- **Drag-and-Drop**: Pindahkan tugas dengan mudah
+- **Customizable Columns**: Sesuaikan kolom dengan workflow tim Anda
+- **WIP Limits**: Batasi jumlah tugas untuk menghindari overload
+
+**Use Case:**
+- Tim agile/scrum untuk sprint planning
+- Tim support untuk mengelola tiket
+- Tim konten untuk produksi artikel/video
+
+---
+
+### **3. 🔀 PERT Diagram Generation (Pembuatan Diagram PERT)**
+Hasilkan diagram PERT secara otomatis untuk mengidentifikasi jalur kritis proyek.
+
+**Keunggulan:**
+- **Automatic Generation**: Sistem generate otomatis dari data proyek
+- **Critical Path Analysis**: Identifikasi tugas-tugas paling kritis
+- **Risk Assessment**: Identifikasi bottleneck dan risiko keterlambatan
+- **Time Estimation**: Hitung estimasi waktu penyelesaian proyek
+
+**Use Case:**
+- Proyek kompleks dengan banyak dependensi
+- Analisis risiko dan perencanaan kontingensi
+- Optimasi timeline proyek
+
+---
+
+### **4. ⏰ Scheduler Integration (Integrasi Penjadwal)**
+Sistem penjadwalan terintegrasi untuk alokasi tugas dan sumber daya.
+
+**Keunggulan:**
+- **Resource Allocation**: Alokasi tim member berdasarkan availability
+- **Conflict Detection**: Deteksi konflik jadwal secara otomatis
+- **Time Tracking**: Catat waktu aktual vs estimasi
+- **Calendar Sync**: Sinkronisasi dengan Google Calendar & Outlook
+
+**Use Case:**
+- Mengelola tim dengan multiple projects
+- Menghindari over-allocation resources
+- Perencanaan kapasitas tim
+
+---
+
+### **5. ✅ To-Do List Functionality (Fungsi Daftar Tugas)**
+Buat dan kelola daftar tugas dengan detail yang dapat disesuaikan.
+
+**Keunggulan:**
+- **Customizable Details**: Field custom sesuai kebutuhan
+- **Subtasks**: Pecah tugas besar menjadi subtask
+- **Priority Levels**: Tingkat prioritas (High, Medium, Low)
+- **Recurring Tasks**: Tugas berulang untuk aktivitas rutin
+- **Checklist**: Tambahkan checklist di dalam tugas
+
+**Use Case:**
+- Personal task management
+- Daily standup tracking
+- Sprint backlog management
+
+---
+
+### **6. 📅 Event Calendar (Kalender Acara)**
+Visualisasikan deadline tugas dan milestone proyek dalam format kalender interaktif.
+
+**Keunggulan:**
+- **Interactive Calendar**: Klik tanggal untuk detail tugas/event
+- **Multiple Views**: Tampilan harian, mingguan, bulanan
+- **Color Coding**: Warna berbeda untuk jenis tugas/proyek
+- **Milestone Tracking**: Highlight milestone penting
+- **Deadline Alerts**: Notifikasi untuk deadline yang mendekat
+
+**Use Case:**
+- Perencanaan sprint dan release
+- Koordinasi deadline antar tim
+- Tracking milestone proyek
+
+---
+
+### **7. 🤖 AI Task Assigner Tool (Penugasan Tugas Berbasis AI)**
+Machine learning yang secara otomatis menyarankan anggota tim yang paling sesuai untuk tugas baru.
+
+**Keunggulan:**
+- **Smart Suggestions**: AI analisis skill, workload, dan performance history
+- **Workload Balancing**: Distribusi tugas yang adil
+- **Skill Matching**: Match tugas dengan expertise tim
+- **Learning System**: Semakin akurat seiring waktu
+- **Time Prediction**: Prediksi waktu penyelesaian berdasarkan assignee
+
+**Faktor yang Dipertimbangkan AI:**
+- Skill set dan expertise anggota tim
+- Current workload dan availability
+- Historical performance pada tugas serupa
+- Task complexity dan requirements
+- Team member preferences
+
+**Use Case:**
+- Onboarding project manager baru
+- Optimasi distribusi kerja dalam tim besar
+- Mengurangi bias dalam penugasan
+
+---
+
+## **🎨 Panduan Gaya (Style Guidelines)**
+
+### **Skema Warna**
+
+| Color Type | Hex Code | Penggunaan | Psikologi |
+|------------|----------|------------|-----------|
+| **Primary** | `#29ABE2` | Tombol utama, header, navigasi | Kepercayaan, produktivitas, profesionalisme |
+| **Background** | `#F0F4F8` | Background utama aplikasi | Clean, mengurangi eye strain |
+| **Accent** | `#FF9800` | Call-to-action, deadline alerts | Energi, urgency, importance |
+
+### **Tipografi**
+
+#### **Headlines: Space Grotesk (Sans-serif)**
+- Modern, geometric, bold
+- Untuk: Judul halaman, section headers, card titles
+- Mudah dibaca dalam ukuran besar
+
+#### **Body Text: Inter (Sans-serif)**
+- Clean, highly legible, optimized for screens
+- Untuk: Paragraf, deskripsi tugas, form labels
+- Readable bahkan dalam ukuran kecil
+
+**Hierarki Tipografi:**
