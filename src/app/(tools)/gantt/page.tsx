@@ -169,7 +169,7 @@ const GanttChart = () => {
   const [cellWidth, setCellWidth] = useState(120);
   const [collapsed, setCollapsed] = useState(new Set<string>());
   const [allTasks, setAllTasks] = useState<Task[]>(initialTasksData);
-  const [teamMembers] = useState<TeamMember[]>(initialTeamMembers);
+  const [teamMembersData] = useState<TeamMember[]>(teamMembers);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   
   const [draggingInfo, setDraggingInfo] = useState<{
@@ -289,12 +289,12 @@ const GanttChart = () => {
   };
   
   const tasksWithAssignees = useMemo(() => {
-    const memberMap = new Map(teamMembers.map(m => [m.id, m]));
+    const memberMap = new Map(teamMembersData.map(m => [m.id, m]));
     return allTasks.map(task => ({
       ...task,
       assignee: task.assigneeId ? memberMap.get(task.assigneeId) : undefined
     }));
-  }, [allTasks, teamMembers]);
+  }, [allTasks, teamMembersData]);
 
 
   const processedTasks = useMemo(() => {
@@ -1298,7 +1298,7 @@ const GanttChart = () => {
           }}
           task={editingTask}
           allTasks={allTasks}
-          teamMembers={teamMembers}
+          teamMembers={teamMembersData}
           onSave={(updatedTask) => {
             handleUpdateTask(editingTask.id, updatedTask);
             setEditingTask(null);
@@ -1315,5 +1315,3 @@ const GanttChart = () => {
 };
 
 export default GanttChart;
-
-    
