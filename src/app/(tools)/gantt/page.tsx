@@ -48,7 +48,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import type { Task, TeamMember, Dependency } from "@/lib/types";
-import { ChevronRight, Diamond, Layers, Triangle } from "lucide-react";
+import { ChevronRight, Diamond, Flag, Layers, Triangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -475,9 +475,11 @@ const GanttChart = () => {
     secondaryHeaderDates,
     totalUnits,
     timelineWidth,
+    projectStartDate,
+    projectEndDate,
   } = useMemo(() => {
     if (!currentDate) {
-      return { interval: { start: new Date(), end: new Date() }, primaryHeader: [], secondaryHeader: [], secondaryHeaderDates: [], totalUnits: 0, timelineWidth: 0 };
+      return { interval: { start: new Date(), end: new Date() }, primaryHeader: [], secondaryHeader: [], secondaryHeaderDates: [], totalUnits: 0, timelineWidth: 0, projectStartDate: null, projectEndDate: null };
     }
 
     let interval: { start: Date, end: Date };
@@ -485,14 +487,16 @@ const GanttChart = () => {
     let secondaryHeader: HeaderGroup[] = [];
     let secondaryHeaderDates: Date[] = [];
     let totalUnits = 0;
+    let projectStartDate: Date | null = null;
+    let projectEndDate: Date | null = null;
 
     const validTasks = allTasks.filter(t => isValid(parseISO(t.startDate)) && isValid(parseISO(t.endDate)));
     if (validTasks.length === 0) {
       interval = { start: startOfYear(new Date()), end: endOfYear(new Date()) };
     } else {
-       const minDate = new Date(Math.min(...validTasks.map(t => parseISO(t.startDate).getTime())));
-       const maxDate = new Date(Math.max(...validTasks.map(t => parseISO(t.endDate).getTime())));
-       interval = { start: startOfYear(minDate), end: endOfYear(maxDate) };
+       projectStartDate = new Date(Math.min(...validTasks.map(t => parseISO(t.startDate).getTime())));
+       projectEndDate = new Date(Math.max(...validTasks.map(t => parseISO(t.endDate).getTime())));
+       interval = { start: startOfYear(projectStartDate), end: endOfYear(projectEndDate) };
     }
 
 
@@ -585,6 +589,8 @@ const GanttChart = () => {
       secondaryHeaderDates,
       totalUnits,
       timelineWidth: finalTimelineWidth,
+      projectStartDate,
+      projectEndDate
     };
   }, [timeScale, currentDate, cellWidth, allTasks]);
   
@@ -749,9 +755,10 @@ const GanttChart = () => {
         const { action, task, taskBarWidth, initialProgress } = draggingInfo;
         
         if (action === 'progress' && taskBarWidth !== undefined && taskBarWidth > 0 && initialProgress !== undefined) {
-            const progressDelta = (dx / taskBarWidth) * 100;
-            const newProgress = Math.max(0, Math.min(100, initialProgress + progressDelta));
-            handleUpdateTask(task.id, { progress: newProgress });
+             const progressDelta = (dx / taskBarWidth) * 100;
+             const newProgressRaw = initialProgress + progressDelta;
+             const newProgress = Math.round(Math.max(0, Math.min(100, newProgressRaw)));
+             handleUpdateTask(task.id, { progress: newProgress });
             return;
         }
 
@@ -900,6 +907,10 @@ const GanttChart = () => {
         </div>
     );
   }
+  
+  const projectStartPos = projectStartDate ? getPositionFromDate(projectStartDate) : -1;
+  const projectEndPos = projectEndDate ? getPositionFromDate(projectEndDate) : -1;
+
 
   return (
     <>
@@ -1044,6 +1055,25 @@ const GanttChart = () => {
                     )
                   })}
                 </div>
+                 {/* Project Markers */}
+                 {projectStartPos > -1 && (
+                  <div className="absolute top-0 h-full w-px" style={{ left: `${projectStartPos}px` }}>
+                      <div className="absolute top-1 -translate-x-full flex items-center gap-1 text-accent text-xs font-bold">
+                        <Flag className="h-4 w-4" />
+                        <span>Mulai</span>
+                      </div>
+                      <div className="w-px h-full bg-accent/50" />
+                  </div>
+                 )}
+                 {projectEndPos > -1 && (
+                    <div className="absolute top-0 h-full w-px" style={{ left: `${projectEndPos}px` }}>
+                        <div className="absolute top-1 translate-x-1 flex items-center gap-1 text-accent text-xs font-bold">
+                            <span>Selesai</span>
+                            <Flag className="h-4 w-4" />
+                        </div>
+                        <div className="w-px h-full bg-accent/50" />
+                    </div>
+                 )}
               </div>
               
               {/* Timeline Content */}
@@ -1260,15 +1290,16 @@ const GanttChart = () => {
                                   task.isCritical ? "bg-accent/80" : (isSummary ? "bg-foreground/80" : "bg-primary/80")
                                 )}
                                 style={{ width: `${progress}%` }}
-                              />
-                              {isDraggable && !isSummary && (
-                                <div
-                                  data-role="progress-handle"
-                                  onMouseDown={(e) => handleDragStart(e, task, 'progress')}
-                                  className="absolute top-1/2 -translate-y-1/2 w-2 h-4 rounded-sm bg-primary-foreground cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30"
-                                  style={{ left: `${progress}%`, transform: 'translateX(-50%)' }}
-                                />
-                              )}
+                              >
+                                {isDraggable && !isSummary && (
+                                  <div
+                                    data-role="progress-handle"
+                                    onMouseDown={(e) => handleDragStart(e, task, 'progress')}
+                                    className="absolute top-1/2 -translate-y-1/2 w-2 h-4 rounded-sm bg-primary-foreground cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30"
+                                    style={{ right: 0, transform: 'translateX(50%)' }}
+                                  />
+                                )}
+                              </div>
                               
                               {/* Drag Handles for Resize */}
                               {isDraggable && !isMilestone && (
