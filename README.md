@@ -175,7 +175,7 @@ H1 (Page Title): Space Grotesk, 32px, Bold H2 (Section Title): Space Grotesk, 24
 
 ---
 
-## **👥 Target Pengguna**
+## ** Target Pengguna**
 
 | Pengguna | Use Case |
 |----------|----------|
