@@ -1,4 +1,4 @@
-# **ProTask Master** 🚀
+# **ProTask Master**
 
 > **Solusi Manajemen Proyek All-in-One dengan AI-Powered Task Assignment**
 
@@ -6,9 +6,9 @@ ProTask Master adalah aplikasi manajemen proyek yang komprehensif dan modern, di
 
 ---
 
-## **✨ Fitur Utama**
+## ** Fitur Utama**
 
-### **1. 📊 Gantt Chart View (Tampilan Diagram Gantt)**
+### **1. Gantt Chart View (Tampilan Diagram Gantt)**
 Visualisasikan jadwal proyek dalam bentuk timeline horizontal yang interaktif.
 
 **Keunggulan:**
@@ -24,7 +24,7 @@ Visualisasikan jadwal proyek dalam bentuk timeline horizontal yang interaktif.
 
 ---
 
-### **2. 📋 Kanban Board View (Tampilan Papan Kanban)**
+### **2. Kanban Board View (Tampilan Papan Kanban)**
 Organisir tugas dalam kolom-kolom dengan sistem drag-and-drop yang intuitif.
 
 **Keunggulan:**
@@ -40,7 +40,7 @@ Organisir tugas dalam kolom-kolom dengan sistem drag-and-drop yang intuitif.
 
 ---
 
-### **3. 🔀 PERT Diagram Generation (Pembuatan Diagram PERT)**
+### **3. PERT Diagram Generation (Pembuatan Diagram PERT)**
 Hasilkan diagram PERT secara otomatis untuk mengidentifikasi jalur kritis proyek.
 
 **Keunggulan:**
@@ -56,7 +56,7 @@ Hasilkan diagram PERT secara otomatis untuk mengidentifikasi jalur kritis proyek
 
 ---
 
-### **4. ⏰ Scheduler Integration (Integrasi Penjadwal)**
+### **4. Scheduler Integration (Integrasi Penjadwal)**
 Sistem penjadwalan terintegrasi untuk alokasi tugas dan sumber daya.
 
 **Keunggulan:**
@@ -72,7 +72,7 @@ Sistem penjadwalan terintegrasi untuk alokasi tugas dan sumber daya.
 
 ---
 
-### **5. ✅ To-Do List Functionality (Fungsi Daftar Tugas)**
+### **5. To-Do List Functionality (Fungsi Daftar Tugas)**
 Buat dan kelola daftar tugas dengan detail yang dapat disesuaikan.
 
 **Keunggulan:**
@@ -89,7 +89,7 @@ Buat dan kelola daftar tugas dengan detail yang dapat disesuaikan.
 
 ---
 
-### **6. 📅 Event Calendar (Kalender Acara)**
+### **6. Event Calendar (Kalender Acara)**
 Visualisasikan deadline tugas dan milestone proyek dalam format kalender interaktif.
 
 **Keunggulan:**
@@ -106,7 +106,7 @@ Visualisasikan deadline tugas dan milestone proyek dalam format kalender interak
 
 ---
 
-### **7. 🤖 AI Task Assigner Tool (Penugasan Tugas Berbasis AI)**
+### **7. AI Task Assigner Tool (Penugasan Tugas Berbasis AI)**
 Machine learning yang secara otomatis menyarankan anggota tim yang paling sesuai untuk tugas baru.
 
 **Keunggulan:**
@@ -130,7 +130,7 @@ Machine learning yang secara otomatis menyarankan anggota tim yang paling sesuai
 
 ---
 
-## **🎨 Panduan Gaya (Style Guidelines)**
+## ** Panduan Gaya (Style Guidelines)**
 
 ### **Skema Warna**
 
@@ -158,9 +158,9 @@ H1 (Page Title): Space Grotesk, 32px, Bold H2 (Section Title): Space Grotesk, 24
 ### **Icon System**
 - **Style**: Minimalist outline icons
 - **Prinsip**: Simple, clear, instantly recognizable
-- **Task Types**: Bug 🐛, Feature ⭐, Documentation 📝
-- **Project Categories**: Development 💻, Marketing 📢, Design 🎨
-- **Status**: In Progress 🔄, Completed ✅, Blocked 🚫
+- **Task Types**: Bug , Feature , Documentation 
+- **Project Categories**: Development , Marketing , Design 
+- **Status**: In Progress , Completed , Blocked 
 
 ### **Layout System**
 - **Grid**: 12-column responsive grid
@@ -187,17 +187,17 @@ H1 (Page Title): Space Grotesk, 32px, Bold H2 (Section Title): Space Grotesk, 24
 
 ---
 
-## **🏆 Keunggulan Kompetitif**
+## ** Keunggulan Kompetitif**
 
-- ✅ **All-in-One Solution**: Gantt, Kanban, PERT dalam satu aplikasi
-- ✅ **AI-Powered**: Smart task assignment untuk optimasi tim
-- ✅ **Flexibility**: Berbagai views untuk berbagai kebutuhan
-- ✅ **Modern UI/UX**: Design yang clean dan intuitive
-- ✅ **Automation**: PERT generation dan AI suggestions
+-  **All-in-One Solution**: Gantt, Kanban, PERT dalam satu aplikasi
+-  **AI-Powered**: Smart task assignment untuk optimasi tim
+-  **Flexibility**: Berbagai views untuk berbagai kebutuhan
+-  **Modern UI/UX**: Design yang clean dan intuitive
+-  **Automation**: PERT generation dan AI suggestions
 
 ---
 
-## **🛠️ Tech Stack (Rekomendasi)**
+## ** Tech Stack (Rekomendasi)**
 
 ### **Frontend**
 - React/Next.js untuk UI
@@ -217,7 +217,7 @@ H1 (Page Title): Space Grotesk, 32px, Bold H2 (Section Title): Space Grotesk, 24
 
 ---
 
-## **🚀 Getting Started**
+## ** Getting Started**
 
 ### Prerequisites
 ```bash
@@ -256,12 +256,12 @@ AI_MODEL_PATH=./models/task_assigner
 
 
 
-📖 Documentation
+Documentation
 User Guide
 API Documentation
 Architecture Overview
 Contributing Guidelines
-🤝 Contributing
+Contributing
 Kami menerima kontribusi! Silakan baca CONTRIBUTING.md untuk detail.
 
 Development Workflow
@@ -276,19 +276,19 @@ git commit -m 'Add amazing feature'
 git push origin feature/amazing-feature
 
 # Open Pull Request
-📝 License
+License
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-📧 Contact
+Contact
 HaKaTo99 - @HaKaTo99
 
 Project Link: https://github.com/HaKaTo99/ProTask-Master
 
-🙏 Acknowledgments
+Acknowledgments
 React
 Tailwind CSS
 D3.js
 TensorFlow
-Made with ❤️ for productive teams everywhere
+Made with for productive teams everywhere
 
 Code
